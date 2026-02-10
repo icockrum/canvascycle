@@ -1,0 +1,8 @@
+
+https://github.com/jhuckaby/lbmtool
+
+php -S localhost:8000
+to run locally
+
+DeluxePaint serial
+330156EA081364
