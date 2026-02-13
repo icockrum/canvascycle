@@ -361,10 +361,13 @@ var CanvasCycle = {
 		var div = $('container');
 		if (!div) return;
 		this.winSize = getInnerWindowSize();
-		var contentWidth = Math.floor((this.contentSize.width * this.contentSize.scale) + this.contentSize.optionsWidth);
+		var optionsGap = this.contentSize.optionsWidth ? 15 : 0;
+		var contentWidth = Math.floor((this.contentSize.width * this.contentSize.scale) + this.contentSize.optionsWidth + optionsGap);
+		var desiredLeft = Math.floor((this.winSize.width / 2) - (contentWidth / 2));
+		var desiredTop = Math.floor((this.winSize.height / 2) - ((this.contentSize.height * this.contentSize.scale) / 2));
 		div.style.width = '' + contentWidth + 'px';
-		div.style.left = '' + Math.floor((this.winSize.width / 2) - (contentWidth / 2)) + 'px';
-		div.style.top = '' + Math.floor((this.winSize.height / 2) - ((this.contentSize.height * this.contentSize.scale) / 2)) + 'px';
+		div.style.left = '' + Math.max(0, desiredLeft) + 'px';
+		div.style.top = '' + Math.max(0, desiredTop) + 'px';
 	},
 
 	handleResize: function() {
