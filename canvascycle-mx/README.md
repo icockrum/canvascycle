@@ -20,3 +20,7 @@ CanvasCycle MX now mirrors the original CanvasCycle presentation and controls, w
 Serve the repository with any static web server and open:
 
 `/canvascycle-mx/index.html`
+
+Standalone player demo page:
+
+`/canvascycle-mx/public/player/standalone.html`
