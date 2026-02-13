@@ -1,0 +1,17 @@
+{
+  "name": "canvascycle-mx-editor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "upng-js": "^2.1.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.11"
+  }
+}

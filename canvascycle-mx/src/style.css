@@ -1,0 +1,10 @@
+:root { font-family: Arial, sans-serif; color: #e7e7e7; background: #1d1d1d; }
+body { margin: 0; }
+#app { max-width: 980px; margin: 0 auto; padding: 16px; }
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+button, select, input { padding: 4px 8px; }
+#viewer { border: 1px solid #444; image-rendering: pixelated; max-width: 100%; background: #000; }
+.palette { display: grid; grid-template-columns: repeat(32, 1fr); gap: 4px; }
+.chip { height: 20px; border: 1px solid rgba(255,255,255,0.3); }
+.cycle-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+#status { color: #9ad4ff; }
