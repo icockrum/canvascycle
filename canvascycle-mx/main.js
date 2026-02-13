@@ -7,6 +7,7 @@ var CanvasCycle = {
 	clock: 0,
 	inGame: false,
 	bmp: null,
+	globalTimeStart: (new Date()).getTime(),
 	inited: false,
 	optTween: null,
 	winSize: null,
@@ -360,7 +361,9 @@ var CanvasCycle = {
 		var div = $('container');
 		if (!div) return;
 		this.winSize = getInnerWindowSize();
-		div.style.left = '' + Math.floor((this.winSize.width / 2) - (((this.contentSize.width * this.contentSize.scale) + this.contentSize.optionsWidth) / 2)) + 'px';
+		var contentWidth = Math.floor((this.contentSize.width * this.contentSize.scale) + this.contentSize.optionsWidth);
+		div.style.width = '' + contentWidth + 'px';
+		div.style.left = '' + Math.floor((this.winSize.width / 2) - (contentWidth / 2)) + 'px';
 		div.style.top = '' + Math.floor((this.winSize.height / 2) - ((this.contentSize.height * this.contentSize.scale) / 2)) + 'px';
 	},
 
