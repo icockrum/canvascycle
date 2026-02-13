@@ -20,60 +20,55 @@
 <body>
 	<div id="container">
 		<div id="d_header">
-			<div id="d_scene_selector"></div>
 			<div id="d_scene_btns">
-				<div class="button left" onClick="CC.jumpScene(-1)">&lt; Prev</div>
-				<div class="button right" onClick="CC.jumpScene(1)">Next &gt;</div>
+				<div class="button left" onClick="CC.jumpScene(-1)">&lt;</div>
+				<div class="button right" onClick="CC.jumpScene(1)">&gt;</div>
 			</div>
-			<div id="d_options_control">
-				<div id="btn_options_toggle" class="button left right" onClick="CC.toggleOptions()">Show Options &#x00BB;</div>
+			<div id="d_scene_selector"></div>
+			<div id="btn_return_uploaded" class="button disabled" onClick="CC.resumeUploadedImage()">Return to Uploaded Image</div>
+			<div id="d_io_top" class="section io-section">
+				<label class="small-label">Upload PNG<input id="fe_upload_png" type="file" accept=".png,image/png" /></label>
+				<label class="small-label">Upload JSON<input id="fe_upload_json" type="file" accept=".json,application/json" /></label>
+				<div class="button" onClick="CC.downloadCurrentJSON()">Export JSON</div>
 			</div>
 			<div class="clear"></div>
 		</div>
 		<div id="d_loading"></div>
-		<canvas id="mycanvas" width="640" height="480"></canvas>
-		<div id="d_options">
-			<div class="label">ZOOM:</div>
-			<div class="section">
-				<div id="btn_zoom_actual" class="button left selected" onClick="CC.setZoom(false)">Actual</div>
-				<div id="btn_zoom_max" class="button right" onClick="CC.setZoom(true)">Max</div>
+		<div id="d_canvas_row">
+			<canvas id="mycanvas" width="640" height="480"></canvas>
+			<div id="d_options">
+				<div class="label">CYCLE SPEED:</div>
+				<div class="section">
+					<div id="btn_speed_025" class="button thin left" onClick="CC.setSpeed(0.25)">&frac14;</div>
+					<div id="btn_speed_05" class="button thin" onClick="CC.setSpeed(0.5)">&frac12;</div>
+					<div id="btn_speed_1" class="button thin selected" onClick="CC.setSpeed(1)">1</div>
+					<div id="btn_speed_2" class="button thin" onClick="CC.setSpeed(2)">2</div>
+					<div id="btn_speed_4" class="button thin right" onClick="CC.setSpeed(4)">4</div>
+				</div>
+
+				<div class="label">CYCLE MODE:</div>
+				<div class="section">
+					<div id="btn_blendshift_off" class="button left" onClick="CC.setBlendShift(false)">Standard</div>
+					<div id="btn_blendshift_on" class="button right selected" onClick="CC.setBlendShift(true)">Blend</div>
+				</div>
+
+				<div class="label">PLAYBACK:</div>
+				<div class="section">
+					<div id="btn_pause" class="button left right" onClick="CC.togglePlayback()">Pause</div>
+				</div>
+
+				<div class="label">PALETTE:</div>
+				<div id="palette_display"></div>
+
+				<div id="d_debug"></div>
 			</div>
-
-			<div class="label">CYCLE SPEED:</div>
-			<div class="section">
-				<div id="btn_speed_025" class="button thin left" onClick="CC.setSpeed(0.25)">&frac14;</div>
-				<div id="btn_speed_05" class="button thin" onClick="CC.setSpeed(0.5)">&frac12;</div>
-				<div id="btn_speed_1" class="button thin selected" onClick="CC.setSpeed(1)">1</div>
-				<div id="btn_speed_2" class="button thin" onClick="CC.setSpeed(2)">2</div>
-				<div id="btn_speed_4" class="button thin right" onClick="CC.setSpeed(4)">4</div>
-			</div>
-
-			<div class="label">CYCLE MODE:</div>
-			<div class="section">
-				<div id="btn_blendshift_off" class="button left" onClick="CC.setBlendShift(false)">Standard</div>
-				<div id="btn_blendshift_on" class="button right selected" onClick="CC.setBlendShift(true)">Blend</div>
-			</div>
-
-			<div class="label">PLAYBACK:</div>
-			<div class="section">
-				<div id="btn_pause" class="button left right" onClick="CC.togglePlayback()">Pause</div>
-			</div>
-
-			<div class="label">IMPORT / EXPORT:</div>
-			<div class="section io-section">
-				<label class="small-label">Upload PNG<input id="fe_upload_png" type="file" accept=".png,image/png" /></label>
-				<label class="small-label">Upload JSON<input id="fe_upload_json" type="file" accept=".json,application/json" /></label>
-				<div id="btn_resume_uploaded" class="button left right disabled" onClick="CC.resumeUploadedImage()">Resume Uploaded Image</div>
-				<div class="button left right" onClick="CC.downloadCurrentJSON()">Download JSON</div>
-			</div>
-
-			<div class="label">PALETTE:</div>
-			<div id="palette_display"></div>
-
+		</div>
+		<div id="d_cycles_row" class="section">
 			<div class="label">CYCLES:</div>
-			<div id="cycles_editor" class="section"></div>
-
-			<div id="d_debug"></div>
+			<div id="cycles_editor"></div>
+			<div id="cycles_toolbar">
+				<div class="button left right" onClick="CC.addCycle()">+ Add Cycle</div>
+			</div>
 		</div>
 		<div class="clear"></div>
 	</div>

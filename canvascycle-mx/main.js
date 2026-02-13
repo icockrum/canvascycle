@@ -20,16 +20,15 @@ var CanvasCycle = {
 	currentSource: 'sample',
 
 	settings: {
-		showOptions: false,
+		showOptions: true,
 		targetFPS: 60,
-		zoomFull: false,
 		blendShiftEnabled: true,
 		speedAdjust: 1.0
 	},
 
 	contentSize: {
 		width: 640,
-		optionsWidth: 0,
+		optionsWidth: 150,
 		height: 480 + 40,
 		scale: 1.0
 	},
@@ -38,7 +37,7 @@ var CanvasCycle = {
 		if (this.inited) return;
 		this.inited = true;
 		$('container').style.display = 'block';
-		$('d_options').style.display = 'none';
+		$('d_options').style.display = '';
 		FrameCount.init();
 		this.handleResize();
 		this.buildPalette();
@@ -91,9 +90,7 @@ var CanvasCycle = {
 	applyStoredPrefs: function() {
 		var prefs = this.cookie.get('settings');
 		if (!prefs) return;
-		if (prefs.showOptions) this.toggleOptions();
 		this.setRate(prefs.targetFPS || 60);
-		this.setZoom(!!prefs.zoomFull);
 		this.setSpeed(prefs.speedAdjust || 1.0);
 		this.setBlendShift((prefs.blendShiftEnabled !== false));
 	},
@@ -171,13 +168,11 @@ var CanvasCycle = {
 	animate: function() {
 		if (!this.inGame || !this.bmp) return;
 		var colors = this.bmp.palette.colors;
-		if (this.settings.showOptions) {
-			for (var idx = 0; idx < colors.length; idx++) {
-				var clr = colors[idx], div = $('pal_' + idx);
-				div.style.backgroundColor = 'rgb(' + clr.red + ',' + clr.green + ',' + clr.blue + ')';
-			}
-			$('d_debug').innerHTML = 'FPS: ' + FrameCount.current + ((this.highlightColor !== -1) ? (' - Color #' + this.highlightColor) : '');
+		for (var idx = 0; idx < colors.length; idx++) {
+			var clr = colors[idx], div = $('pal_' + idx);
+			div.style.backgroundColor = 'rgb(' + clr.red + ',' + clr.green + ',' + clr.blue + ')';
 		}
+		$('d_debug').innerHTML = 'FPS: ' + FrameCount.current + ((this.highlightColor !== -1) ? (' - Color #' + this.highlightColor) : '');
 
 		if (!this.paused) {
 			this.bmp.palette.cycle(this.bmp.palette.baseColors, GetTickCount(), this.settings.speedAdjust, this.settings.blendShiftEnabled);
@@ -203,15 +198,22 @@ var CanvasCycle = {
 			var cyc = this.bmp.palette.cycles[idx];
 			var row = document.createElement('div');
 			row.className = 'cycle_row';
-			row.innerHTML = 'C' + (idx + 1)
-				+ ' <label>reverse <select data-cycle="' + idx + '" data-key="reverse"><option>0</option><option>1</option><option>2</option></select></label>'
-				+ ' <label>rate <input type="number" data-cycle="' + idx + '" data-key="rate" value="' + cyc.rate + '"></label>'
-				+ ' <label>low <input type="number" min="0" max="255" data-cycle="' + idx + '" data-key="low" value="' + cyc.low + '"></label>'
-				+ ' <label>high <input type="number" min="0" max="255" data-cycle="' + idx + '" data-key="high" value="' + cyc.high + '"></label>';
+			row.innerHTML = '<div class="cycle_id">C' + (idx + 1) + '</div>'
+				+ '<label class="cycle_field"><span>Reverse</span><select data-cycle="' + idx + '" data-key="reverse"><option>0</option><option>1</option><option>2</option></select></label>'
+				+ '<label class="cycle_field"><span>Rate</span><input type="number" data-cycle="' + idx + '" data-key="rate" value="' + cyc.rate + '"></label>'
+				+ '<label class="cycle_field"><span>Low</span><input type="number" min="0" max="255" data-cycle="' + idx + '" data-key="low" value="' + cyc.low + '"></label>'
+				+ '<label class="cycle_field"><span>High</span><input type="number" min="0" max="255" data-cycle="' + idx + '" data-key="high" value="' + cyc.high + '"></label>'
+				+ '<div class="button cycle_remove" data-action="remove" data-cycle="' + idx + '">-</div>';
 			container.appendChild(row);
 			var sel = row.querySelector('select');
 			sel.value = '' + cyc.reverse;
 		}
+		container.onclick = function(e) {
+			var t = e.target;
+			if (t.getAttribute('data-action') !== 'remove') return;
+			var cidx = parseInt(t.getAttribute('data-cycle'), 10);
+			CanvasCycle.removeCycle(cidx);
+		};
 		container.onchange = function(e) {
 			var t = e.target;
 			if (!t.getAttribute('data-cycle')) return;
@@ -227,7 +229,34 @@ var CanvasCycle = {
 			}
 			cyc[key] = isNaN(val) ? 0 : val;
 			CanvasCycle.bmp.optimize();
+			CanvasCycle.syncUploadedImageData();
 		};
+	},
+
+	addCycle: function() {
+		if (!this.bmp) return;
+		this.bmp.palette.cycles.push(new Cycle(280, 0, 0, 0));
+		this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
+		this.bmp.optimize();
+		this.renderCyclesEditor();
+		this.syncUploadedImageData();
+	},
+
+	removeCycle: function(cycleIdx) {
+		if (!this.bmp || !this.bmp.palette.cycles.length) return;
+		if (isNaN(cycleIdx) || cycleIdx < 0 || cycleIdx >= this.bmp.palette.cycles.length) return;
+		this.bmp.palette.cycles.splice(cycleIdx, 1);
+		this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
+		this.bmp.optimize();
+		this.renderCyclesEditor();
+		this.syncUploadedImageData();
+	},
+
+	syncUploadedImageData: function() {
+		if (this.currentSource !== 'uploaded' || !this.uploadedImageData || !this.bmp) return;
+		this.uploadedImageData.cycles = this.bmp.palette.cycles.map(function(c) {
+			return { low: c.low, high: c.high, rate: c.rate, reverse: c.reverse };
+		});
 	},
 
 	reorderPalette: function(fromIdx, toIdx) {
@@ -258,7 +287,7 @@ var CanvasCycle = {
 				CanvasCycle.uploadedImageData = img;
 				CanvasCycle.currentSource = 'uploaded';
 				CanvasCycle.processImage(img);
-				$('btn_resume_uploaded').setClass('disabled', false);
+				$('btn_return_uploaded').setClass('disabled', false);
 			} catch (err) { $('d_debug').innerHTML = 'Invalid JSON upload'; }
 		};
 		reader.readAsText(file);
@@ -285,7 +314,7 @@ var CanvasCycle = {
 				CanvasCycle.uploadedImageData = img;
 				CanvasCycle.currentSource = 'uploaded';
 				CanvasCycle.processImage(img);
-				$('btn_resume_uploaded').setClass('disabled', false);
+				$('btn_return_uploaded').setClass('disabled', false);
 			} catch (err) { $('d_debug').innerHTML = err.message; }
 		};
 		reader.readAsArrayBuffer(file);
@@ -329,90 +358,24 @@ var CanvasCycle = {
 	hideLoading: function() { $('d_loading').hide(); },
 
 	scaleAnimate: function() {
-		if (this.settings.zoomFull) {
-			var maxScaleX = (this.winSize.width - 30) / (this.contentSize.width + this.contentSize.optionsWidth);
-			var maxScaleY = (this.winSize.height - 30) / this.contentSize.height;
-			var maxScale = Math.min(maxScaleX, maxScaleY);
-			if (this.contentSize.scale !== maxScale) {
-				this.contentSize.scale += ((maxScale - this.contentSize.scale) / 8);
-				if (Math.abs(this.contentSize.scale - maxScale) < 0.001) this.contentSize.scale = maxScale;
-				this.applyScale();
-			}
-		}
-		else if (this.contentSize.scale > 1.0) {
-			this.contentSize.scale += ((1.0 - this.contentSize.scale) / 8);
-			if (this.contentSize.scale < 1.001) this.contentSize.scale = 1.0;
-			this.applyScale();
-		}
-	},
-
-	applyScale: function() {
-		var sty = $('mycanvas').style;
-		if (ua.webkit) sty.webkitTransform = 'translate3d(0px, 0px, 0px) scale(' + this.contentSize.scale + ')';
-		else if (ua.ff) sty.MozTransform = 'scale(' + this.contentSize.scale + ')';
-		else if (ua.op) sty.OTransform = 'scale(' + this.contentSize.scale + ')';
-		else sty.transform = 'scale(' + this.contentSize.scale + ')';
-		sty.marginRight = '' + Math.floor((this.contentSize.width * this.contentSize.scale) - this.contentSize.width) + 'px';
-		$('d_header').style.width = '' + Math.floor(this.contentSize.width * this.contentSize.scale) + 'px';
-		this.repositionContainer();
+		// zoom is intentionally fixed at actual size
+		return;
 	},
 
 	repositionContainer: function() {
 		var div = $('container');
 		if (!div) return;
-		this.winSize = getInnerWindowSize();
 		var optionsGap = this.contentSize.optionsWidth ? 15 : 0;
-		var contentWidth = Math.floor((this.contentSize.width * this.contentSize.scale) + this.contentSize.optionsWidth + optionsGap);
-		var desiredLeft = Math.floor((this.winSize.width / 2) - (contentWidth / 2));
-		var desiredTop = Math.floor((this.winSize.height / 2) - ((this.contentSize.height * this.contentSize.scale) / 2));
+		var contentWidth = this.contentSize.width + this.contentSize.optionsWidth + optionsGap;
 		div.style.width = '' + contentWidth + 'px';
-		div.style.left = '' + Math.max(0, desiredLeft) + 'px';
-		div.style.top = '' + Math.max(0, desiredTop) + 'px';
 	},
 
 	handleResize: function() {
 		this.repositionContainer();
-		if (this.settings.zoomFull) this.scaleAnimate();
 	},
 
 	saveSettings: function() { this.cookie.set('settings', this.settings); this.cookie.save(); },
 
-	toggleOptions: function() {
-		var startValue, endValue;
-		TweenManager.removeAll({ category: 'options' });
-		if (!this.settings.showOptions) {
-			startValue = this.optTween ? this.optTween.target.value : 0;
-			endValue = 1.0;
-			$('d_options').style.display = '';
-			$('d_options').style.opacity = startValue;
-			$('btn_options_toggle').innerHTML = '&#x00AB; Hide Options';
-		} else {
-			startValue = this.optTween ? this.optTween.target.value : 1.0;
-			endValue = 0;
-			$('btn_options_toggle').innerHTML = 'Show Options &#x00BB;';
-		}
-		this.optTween = TweenManager.tween({
-			target: { value: startValue }, duration: Math.floor(this.settings.targetFPS / 3), mode: 'EaseOut', algo: 'Quadratic', props: { value: endValue },
-			onTweenUpdate: function(tween) {
-				$('d_options').style.opacity = tween.target.value;
-				$('btn_options_toggle').style.left = '' + Math.floor(tween.target.value * 128) + 'px';
-				CanvasCycle.contentSize.optionsWidth = Math.floor(tween.target.value * 150);
-				CanvasCycle.handleResize();
-			},
-			onTweenComplete: function(tween) { if (tween.target.value === 0) $('d_options').style.display = 'none'; CanvasCycle.optTween = null; },
-			category: 'options'
-		});
-		this.settings.showOptions = !this.settings.showOptions;
-		this.saveSettings();
-	},
-
-	setZoom: function(enabled) {
-		if (enabled !== this.settings.zoomFull) {
-			this.settings.zoomFull = enabled; this.saveSettings();
-			$('btn_zoom_actual').setClass('selected', !enabled);
-			$('btn_zoom_max').setClass('selected', enabled);
-		}
-	},
 	setRate: function(rate) { this.settings.targetFPS = rate; this.saveSettings(); },
 	setSpeed: function(speed) {
 		$('btn_speed_025').setClass('selected', speed === 0.25);

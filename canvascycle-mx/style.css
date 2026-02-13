@@ -3,7 +3,8 @@ body {
 	color: #888;
 	font-family: Helvetica, sans-serif;
 	font-size: 11px;
-	overflow: hidden;
+	overflow-x: hidden;
+	overflow-y: auto;
 	margin: 0;
 	padding: 0;
 	width: 100%;
@@ -36,21 +37,22 @@ div.clear {
 }
 
 #container {
-	position: absolute;
+	position: relative;
 	display: none;
-	left: 0px;
-	top: 0px;
+	margin: 10px auto;
 }
 
 #d_header {
 	margin-bottom: 10px;
-	width: 640px;
-	height: 30px;
+	width: 100%;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
 }
 
 #d_scene_selector {
-	float: left;
-	line-height: 30px;
+	line-height: 26px;
 }
 
 #fe_scene {
@@ -63,19 +65,19 @@ div.clear {
 }
 
 #d_scene_btns {
-	float: left;
-	margin-left: 20px;
-	margin-top: 3px;
+	display: flex;
 }
 
-#d_options_control {
-	float: right;
-	margin-top: 3px;
+#d_io_top {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+	flex-wrap: wrap;
 }
 
-#btn_options_toggle {
-	position: relative;
-	left: 0px;
+#d_io_top .small-label {
+	margin: 0;
 }
 
 #d_loading {
@@ -103,6 +105,11 @@ div.clear {
 
 	-o-transform: translate(0px 0px) scale(1);
 	-o-transform-origin: 0px 0px;
+}
+
+#d_canvas_row {
+	display: flex;
+	align-items: flex-start;
 }
 
 #d_options {
@@ -254,7 +261,7 @@ div.label {
 }
 .io-section input[type="file"] {
 	display: block;
-	margin: 2px 0 8px 0;
+	margin: 2px 0 0 0;
 	max-width: 148px;
 	font-size: 11px;
 }
@@ -269,21 +276,48 @@ div.label {
 	pointer-events: none;
 }
 #cycles_editor {
-	max-height: 170px;
+	max-height: 240px;
 	overflow: auto;
 }
+#d_cycles_row {
+	margin-top: 10px;
+}
+#cycles_toolbar {
+	margin-top: 8px;
+}
 .cycle_row {
+	display: grid;
+	grid-template-columns: 2rem 4.5rem 4.5rem 4.5rem 4.5rem auto;
+	column-gap: 1rem;
+	align-items: end;
 	font-size: 10px;
-	line-height: 18px;
-	margin-bottom: 3px;
+	margin-bottom: 8px;
+}
+.cycle_id {
+	font-weight: bold;
+	line-height: 24px;
+}
+.cycle_field {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+.cycle_field > span {
+	font-size: 10px;
+	color: #aaa;
 }
 .cycle_row input,
 .cycle_row select {
-	width: 44px;
+	width: 100%;
+	box-sizing: border-box;
 	font-size: 10px;
 	background: #111;
 	color: #aaa;
 	border: 1px solid #444;
+}
+.cycle_remove {
+	justify-self: start;
 }
 div.palette_color {
 	cursor: move;
