@@ -24,3 +24,23 @@ Serve the repository with any static web server and open:
 Standalone player demo page:
 
 `/canvascycle-mx/public/player/standalone.html`
+
+## Single-file self-running embeds
+
+You can now generate a single JavaScript file that contains both the player runtime and your scene JSON payload. The output script is self-executing, keeps everything in an internal scope, and auto-creates its own `<canvas>` where the `<script>` tag appears.
+
+Generate an embed script:
+
+```bash
+npm run wrap-player -- canvascycle-mx/public/images/TESTRAMP.json public/player/testramp-embed.js
+```
+
+Then include it anywhere in HTML (no manual init call required):
+
+```html
+<script src="/public/player/testramp-embed.js"></script>
+```
+
+Each embed file is isolated, so you can include multiple different animations on the same page by adding multiple `<script>` tags.
+
+In the editor UI, both **Export JSON** and **Export Embed** now download minimized files (compact single-line output with no extra whitespace).
