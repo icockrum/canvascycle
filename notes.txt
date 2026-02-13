@@ -1,10 +1,14 @@
 
+Canvas Cycle by Joseph Huckaby
 https://github.com/jhuckaby/canvascycle
 https://github.com/jhuckaby/lbmtool
+https://www.pixlcore.com/view/canvascycle
 
+Showing art by Mark J Ferrari
 http://www.effectgames.com/effect/article.psp.html/joe/Q_A_with_Mark_J_Ferrari
 
+
 php -S localhost:8000
-to run locally
+to run the original canvascycle project locally
 
 
