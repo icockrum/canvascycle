@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CanvasCycle Standalone Player</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #111;
+      color: #ddd;
+      font-family: system-ui, sans-serif;
+    }
+    main { text-align: center; }
+    canvas {
+      width: min(90vw, 960px);
+      height: auto;
+      image-rendering: pixelated;
+      border: 1px solid #444;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      background: #000;
+    }
+    p { margin-top: 0.75rem; color: #aaa; }
+  </style>
+</head>
+<body>
+  <main>
+    <canvas id="player" aria-label="CanvasCycle TESTRAMP preview"></canvas>
+    <p>Loaded via <code>canvascycle-player.js</code> + <code>TESTRAMP.json</code>.</p>
+  </main>
+
+  <script src="./canvascycle-player.js"></script>
+  <script>
+    const canvas = document.getElementById('player');
+    const player = new CanvasCyclePlayer(canvas);
+    player.loadFromUrl('../images/TESTRAMP.json').catch((err) => {
+      console.error(err);
+      alert('Failed to load TESTRAMP.json');
+    });
+  </script>
+</body>
+</html>
