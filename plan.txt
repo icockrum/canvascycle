@@ -1,0 +1,56 @@
+PRIMARY GOAL
+
+The primary goal is to build on the interface provided by canvascycle to create a tool that allows editors to upload a png image for conversion to json, view the resulting image in the tool, revise its color palette and cycles, then download a json file for consumption with a standalone version of the color cycling script.
+
+For the moment I would like to retain the original canvascycle project and build new work into the canvascycle-mx directory. Copy files as needed from the canvascycle directory to the new canvascycle-mx directory.
+
+The project setup should be ESM with a local server and hot reloading. It's been recommended that I should use vite as a build tool. I have not used vite before and will appreciate a simple well-documented setup.
+
+The target environment is an html page running from an apache server (with php, should it be necessary).
+
+The current tool builds a select menu corresponding to the available sample files. For now I will keep this menu of samples. However, canvascyle uses an image.php file to serve up .json files, and I believe that is no longer necessary. Please replace the php call with a standard modern fetch method to load json files.
+
+• add feature to upload a png image
+  - have it converted to json data
+  - display in the image viewer
+  - download the json file
+  - uploaded image does not need to be written back to server
+
+• see the conversion script in node/png-to-json.js as a model
+  - if possible, this should be converted to front-end javascript that acts on the uploaded png image.
+  - if necessary, this can be converted to php.
+  - The tool will run in a shared environment that may not support node, so we can't rely on that in production
+
+• add feature to upload a previously exported json file for viewing in the tool
+
+• add feature to pause/resume cycling animation
+
+• add feature to rearrange color chips in the palette by dragging & dropping them into new positions
+  - dragged chips should insert before any chip they're dragged onto
+  - palette data for the image must be updated
+  - pixel data for the image must be updated per revised palette
+
+• display cycles info for displayed file in an editable list
+  - reverse should show a select menu with options 0, 1, 2
+  - rate should be a numerical input field 
+  - low should be a numerical input restricted from 0 to 255
+  - high should be a numerical input restricted from 0 to 255
+
+• add feature to download a json file for the currently viewed image
+  - json to include any edits made to palette and cycles
+
+• remove the audio playback feature and all sound related variables and methods
+
+• it seems that data loaded to the front-end gets cached. ensure that all calls to images and php are appended with a timestamp to prevent caching.
+
+• I want to keep the menu of existing images, allowing users to use the same palette / cycle editing features. We will not save those edited images back to the server, though users may download their customized versions of them.
+
+• If a user has an uploaded image with edits, selecting an image from the menu or via the next/prev buttons should keep their image data in memory, with a button to resume editing their uploaded image.
+
+SECONDARY GOAL
+
+The secondary goal is to create a standalone player script that can take either an externally loaded json file or inline json, and play independently inside a web page. It must be easy to import this script into another page via a <script> tag.
+
+• Only one image will play at a time, but the independent player should have a method to instantiate a player instance, with or without a current image, and live swap a new image to the instance at any time, also from an external file or inline data. 
+
+• Player should have methods to pause / resume playback; and stop and unload the current image from memory.

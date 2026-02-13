@@ -1,0 +1,23 @@
+{
+  "name": "canvascycle-mx",
+  "version": "1.0.0",
+  "description": "An extension of jhuckaby's canvascycle.",
+  "homepage": "https://github.com/icockrum/canvascycle#readme",
+  "bugs": {
+    "url": "https://github.com/icockrum/canvascycle/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/icockrum/canvascycle.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "upng-js": "^2.1.0"
+  }
+}

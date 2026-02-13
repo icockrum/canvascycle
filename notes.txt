@@ -1,8 +1,10 @@
 
+https://github.com/jhuckaby/canvascycle
 https://github.com/jhuckaby/lbmtool
+
+http://www.effectgames.com/effect/article.psp.html/joe/Q_A_with_Mark_J_Ferrari
 
 php -S localhost:8000
 to run locally
 
-DeluxePaint serial
-330156EA081364
+
