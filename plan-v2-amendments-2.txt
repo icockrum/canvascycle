@@ -1,0 +1,21 @@
+Some adjustments to the new features we just added to my canvascycle-mx app.
+
+In the five speed buttons, let's remove the gap between those buttons. The buttons have rounded corners. Let's adjust it so only the first button has rounded top/bottom left, and only the last button has rounded top/bottom right.
+
+Let's add 10px of space on either side of the blend button.
+
+The cycle palette is wider than it needs to be. Let's remove that min-width.
+
+Let's set the cycle palette's default position so that its top aligns with the cycles panel, and it is horizontally centered within the width of the palette color panel.
+
+The grabbable motif on the cycle palette appears to be diagonal criss-cross. Let's make that just a series of alternating thin horizontal bars, which is a more standard visual approach.
+
+The image tool palette is not draggable, but it should also be draggable, with the same grabbable motif at top.
+
+When clicking the color chip in the image tool palette, the secondary popup color chip selection falls to the right of the main palette, which can make the popup fall partially off screen. It should be screen-aware so that it doesn't get cut off.
+
+In the File menu, when using the Open Sample item, we show a modal with three buttons: Export JSON, Cancel, Open Selection. Let's show Open Selection as a default option, with a wider outline.
+
+When we click the File menu item, the pop-up menu that appears is separated from the main menu bar. Let's have it appear as if it was attached, meaning remove the gap between the pop-up and the menubar, and remove the rounded corners at top left/right.
+
+In the image canvas, at zooms over 500%, we are showing an overlay grid. Let's add a button to the tool palette, just above the reset button, to toggle the grid. The icon for this button can be just a small grid.
