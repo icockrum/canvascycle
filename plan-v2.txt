@@ -1,0 +1,56 @@
+I want to add some new features to my canvascycle-mx app.
+
+• At the moment I have a toggle method for switching between images selected from the select menu and images that the user has uploaded. I want to do away with that schism. For now, the app should only open one image at a time; and treat images the same whether they were uploaded via the "Upload PNG" or "Upload JSON" options, or selected from the select menu. We can do away with the "Return to Uploaded Image" button.
+
+• If the user has an active image and then goes to select an image from the selection menu, I want the user to be presented with a modal dialog that says "Edits to the current image will be lost." and present three buttons: "Export JSON" "Cancel" "Open Selection". 
+  - The Export JSON button should behave the same as the existing Export JSON button.
+  - The Cancel button should close the modal dialog.
+  - The Open Selection button should replace the currently active image data with image data loaded via the selection menu.
+
+• I would like to make the UI more in line with a modern app UI. 
+
+• Remove the gradient styling from buttons, and use flat colors, more inline with the UI of Photoshop or Figma. 
+
+• Prep the overall UI for light / dark detection, with corresponding themes.
+
+• Create a full width menubar at the top of the page. 
+
+• Add a File item to the left side of the menubar. Clicking File should open a popup menu.
+
+  - Move the d_scene_selector menu container to the popup menu. This should be a nested menu item named "Open Sample", similar to Photoshop's File > Open Recent menu, with a float-right angle bracket to indicate the nested item. Hovering over the Open Sample menu item should reveal a second tier popup that contains the #fe_scene list. Selecting from the list should work the same as it currently does. 
+
+  - We can do away with the old left/right buttons in #d_scene_btns as we will no longer need that functionality.
+
+  - Add a dividing line between Open Sample and the next set of items, whether that is an HR or an underlined element.
+
+  - Move the Upload PNG button to the File popup menu, retaining its current functionality, but visually reformatting as needed to make it look like a standard menu item.
+
+  - Move the Upload JSON button to the File popup menu, retaining its current functionality, but visually reformatting as needed to make it look like a standard menu item.
+
+  - Add another dividing line after the Upload PNG and Upload JSON item subgroup.
+
+  - Move the Export JSON button to a menu item, working the same as before, but visually styled to look like another menu item.
+
+  - Move the Export Embed button to a menu item, working the same as before, but visually styled to look like another menu item.
+ 
+• I want to streamline the three cycles options – speed, mode, pause/resume – into one floating tool palette. This palette contains options only pertaining to cycles. We will be making another floating tool palette for image viewing / editing in a later step.
+
+  - For Mode, remove the standard selection and just turn it into a styled checkbox, where enabled = blend and disabled = standard. It should be enabled by default. Change the label from Mode to Blend. Make an icon that looks like a simple gradient – like Photoshop's gradient tool icon – using CSS and/or SVG.
+
+• Create a second floating palette for image viewing / editing tools. I will be describing icons for the tools in this palette. Please don't try to use .gif or .png images for these icons, as you can't handle binary files. Try to use pure CSS or SVG if possible, and if you can't create an icon as I describe it, let me know and I'll find an appropriate image.
+
+  - The first item will be a magnifying glass. Clicking the magnifying glass icon should change the cursor to a magnifying glass with a plus symbol in it, only when the cursor is over the canvas area.  Clicking on the canvas area with the magnifying glass icon should zoom the image. Do not change the canvas size, but only the scale of the image within it, using the clicked point as an origin for the scale. Each zoom level should add 100% to the magnification. 100%, 200%, 300%, 400% to a maximum of 1000%.  Holding down the option key while using the magnifying glass should change the magnifying glass symbol to a minus. Clicking on the canvas with the option key down should zoom out, shrinking the image by 100% until it reaches 100%. Negative zooming beyond 100% should occur in 25% increments: 100%, 75%, 50%, 25%. Important: Color cycling animation must still be functional at any zoom level. At zoom levels of 600% and beyond, I would like to draw a grid of thin white lines representing pixel divisions, to make it easier to edit single pixels. The grid must be oriented to the image origin, as opposed to the canvas origin.
+
+- The last item in the image viewing / editing tool palette will be a color chip representing the currently selected color, and of course we will need an app variable to store currently selected color. By default, if no color has been selected by a user, this color will be black. As we add new tools to the palette, the color chip will always be at the bottom of the tool palette.
+
+  - Add a pencil icon to the image tool palette, second after the magnifying glass. Clicking the pencil icon should change the cursor to a pencil icon, only when the cursor is over the canvas area. Clicking on any pixel in the canvas image should change that pixel to the currently selected color chip. If the image is zoomed, the app must maintain an awareness of what a "pixel" means - relative to the original 100% scale of the image. So for example at a 400% zoom, one pixel may look like four pixels (or however that math works), and we're editing them all as one pixel.
+
+- Add an eyedropper icon to the image tool palette, after the pencil icon. Clicking the eyedropper icon should change the cursor to an eyedropper. The eyedropper should work over the canvas area, and also over the palette grid, so that we can select a color from the image or from the grid.
+
+- Add a move tool to the image tool palette, after the eyedropper icon. The Move tool should look like a grab hand. Clicking the move icon should change the cursor to a grab hand. Clicking on the canvas with the grab hand should change the icon to a grabber cursor. Dragging the canvas with the grabber should drag the image within the cursor.
+
+- Place a light dividing line here before the two final tools, as those behave differently from the others. 
+
+- Add a reset tool to the image tool palette, second to last before the color chip tool. The reset tool should have an icon like a spinning wheel with an arrow, like a recycle icon. Clicking the reset button should set the image zoom to 100%, centered in the canvas. This is so that a user can reset the image placement, especially if they've dragged/zoomed it somehow awkwardly. 
+
+- And finally, as already described, our color chip is at the bottom.
