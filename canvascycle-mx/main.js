@@ -335,6 +335,19 @@ var CanvasCycle = {
     var container = $("cycles_editor");
     container.innerHTML = "";
     if (!this.bmp) return;
+    if (this.bmp.palette.cycles.length) {
+      var header = document.createElement("div");
+      header.className = "cycle_header";
+      header.innerHTML =
+        '<div class="cycle_id">Cycle</div>' +
+        '<div class="cycle_col">Direction</div>' +
+        '<div class="cycle_col">Rate</div>' +
+        '<div class="cycle_col">Low</div>' +
+        '<div class="cycle_col">High</div>' +
+        '<div class="cycle_col">Active</div>' +
+        '<div class="cycle_col">Remove</div>';
+      container.appendChild(header);
+    }
     for (var idx = 0; idx < this.bmp.palette.cycles.length; idx++) {
       var cyc = this.bmp.palette.cycles[idx];
       var row = document.createElement("div");
@@ -343,25 +356,25 @@ var CanvasCycle = {
         '<div class="cycle_id">C' +
         (idx + 1) +
         "</div>" +
-        '<label class="cycle_field"><span>Reverse</span><select data-cycle="' +
+        '<label class="cycle_field"><select data-cycle="' +
         idx +
         '" data-key="reverse"><option>0</option><option>1</option><option>2</option></select></label>' +
-        '<label class="cycle_field"><span>Rate</span><input type="number" data-cycle="' +
+        '<label class="cycle_field"><input type="number" data-cycle="' +
         idx +
         '" data-key="rate" value="' +
         cyc.rate +
         '"></label>' +
-        '<label class="cycle_field"><span>Low</span><input type="number" min="0" max="255" data-cycle="' +
+        '<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' +
         idx +
         '" data-key="low" value="' +
         cyc.low +
         '"></label>' +
-        '<label class="cycle_field"><span>High</span><input type="number" min="0" max="255" data-cycle="' +
+        '<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' +
         idx +
         '" data-key="high" value="' +
         cyc.high +
         '"></label>' +
-        '<label class="cycle_field cycle_active"><span>Active</span><input type="checkbox" data-cycle="' +
+        '<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' +
         idx +
         '" data-key="active"' +
         (cyc.active === false ? '' : ' checked="checked"') +

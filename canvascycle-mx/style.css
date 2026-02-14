@@ -317,27 +317,35 @@ div.clear {
 #cycles_toolbar {
 	margin-top: 8px;
 }
+.cycle_header,
 .cycle_row {
 	display: grid;
 	grid-template-columns: 2rem 4.5rem 4.5rem 4.5rem 4.5rem 4.5rem auto;
 	column-gap: 1rem;
-	align-items: end;
+	align-items: center;
 	font-size: 10px;
+
+}
+.cycle_header {
+	color: #aaa;
+	margin-bottom: 4px;
+}
+.cycle_row {
+	align-items: end;
 	margin-bottom: 8px;
 }
 .cycle_id {
 	font-weight: bold;
 	line-height: 24px;
 }
+.cycle_col {
+	font-size: 10px;
+}
 .cycle_field {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
 	min-width: 0;
-}
-.cycle_field > span {
-	font-size: 10px;
-	color: #aaa;
 }
 .cycle_row input,
 .cycle_row select {
