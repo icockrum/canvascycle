@@ -22,6 +22,17 @@ var CanvasCycle = {
   pausedTime: 0,
   uploadedImageData: null,
   currentSource: "sample",
+  activeFilename: "",
+  pendingSceneIdx: -1,
+  pendingSceneName: "",
+  view: { zoom: 1, minZoom: 0.25, maxZoom: 10, offsetX: 0, offsetY: 0 },
+  activeTool: "zoom",
+  dragging: false,
+  dragStartX: 0,
+  dragStartY: 0,
+  dragStartOffsetX: 0,
+  dragStartOffsetY: 0,
+  currentPaintColor: [0, 0, 0],
 
   settings: {
     showOptions: true,
@@ -47,8 +58,12 @@ var CanvasCycle = {
     this.buildPalette();
     this.bindKeyboardNavigation();
     this.bindUploadControls();
+    this.bindMenus();
+    this.bindCanvasTools();
     this.populateScenes(0);
     this.applyStoredPrefs();
+    this.setTool("zoom");
+    this.updateColorChip();
     this.loadImage(scenes[0].name);
     this.sceneIdx = 0;
   },
@@ -70,6 +85,11 @@ var CanvasCycle = {
         CanvasCycle.updateHighlightColor();
       };
       div.onclick = function () {
+        if (CanvasCycle.activeTool === "eyedropper" && CanvasCycle.bmp) {
+          var c = CanvasCycle.bmp.palette.baseColors[this._idx];
+          if (c) { CanvasCycle.currentPaintColor = [c.red, c.green, c.blue]; CanvasCycle.updateColorChip(); }
+          return;
+        }
         CanvasCycle.toggleSelectedColor(this._idx);
       };
       div.ondragstart = function (e) {
@@ -97,6 +117,35 @@ var CanvasCycle = {
     });
     $("fe_upload_json").addEventListener("change", function (e) {
       CanvasCycle.handleJSONUpload(e);
+    });
+  },
+
+  bindMenus: function () {
+    $("btn_file_menu").addEventListener("click", function (e) {
+      e.stopPropagation();
+      var menu = $("file_menu");
+      var isHidden = /(^|\s)hidden(\s|$)/.test(menu.className);
+      menu.setClass("hidden", !isHidden);
+    });
+    document.addEventListener("click", function () {
+      $("file_menu").setClass("hidden", true);
+    });
+  },
+
+  bindCanvasTools: function () {
+    var canvas = $("mycanvas");
+    canvas.addEventListener("mousedown", function (e) {
+      CanvasCycle.onCanvasMouseDown(e);
+    });
+    canvas.addEventListener("mousemove", function (e) {
+      CanvasCycle.onCanvasMouseMove(e);
+    });
+    window.addEventListener("mouseup", function () {
+      CanvasCycle.dragging = false;
+      CanvasCycle.updateCanvasCursor();
+    });
+    canvas.addEventListener("click", function (e) {
+      CanvasCycle.onCanvasClick(e);
     });
   },
 
@@ -166,8 +215,7 @@ var CanvasCycle = {
   },
 
   populateScenes: function (initialSceneIdx) {
-    var html =
-      '<select id="fe_scene" onChange="CanvasCycle.switchScene(this)">';
+    var html = '<select id="fe_scene" onChange="CanvasCycle.switchScene(this)">';
     for (var i = 0; i < scenes.length; i++) {
       html +=
         '<option value="' +
@@ -200,9 +248,34 @@ var CanvasCycle = {
 
   switchScene: function (menu) {
     var name = menu.options[menu.selectedIndex].value;
+    if (this.bmp) {
+      this.pendingSceneIdx = menu.selectedIndex;
+      this.pendingSceneName = name;
+      $("scene_modal").setClass("hidden", false);
+      return;
+    }
     this.sceneIdx = menu.selectedIndex;
     this.currentSource = "sample";
     this.loadImage(name);
+  },
+
+  cancelSceneSwitch: function () {
+    $("scene_modal").setClass("hidden", true);
+    if (this.sceneIdx >= 0) $("fe_scene").selectedIndex = this.sceneIdx;
+    this.pendingSceneIdx = -1;
+    this.pendingSceneName = "";
+  },
+
+  confirmSceneSwitch: function () {
+    if (!this.pendingSceneName) return this.cancelSceneSwitch();
+    this.sceneIdx = this.pendingSceneIdx;
+    this.currentSource = "sample";
+    this.loadImage(this.pendingSceneName);
+    this.cancelSceneSwitch();
+  },
+
+  modalExportJSON: function () {
+    this.downloadCurrentJSON();
   },
 
   loadImage: function (name) {
@@ -230,9 +303,7 @@ var CanvasCycle = {
     var canvas = $("mycanvas");
     if (!canvas.getContext) return;
     if (!this.ctx) this.ctx = canvas.getContext("2d");
-    this.ctx.clearRect(0, 0, this.bmp.width, this.bmp.height);
-    this.ctx.fillStyle = "rgb(0,0,0)";
-    this.ctx.fillRect(0, 0, this.bmp.width, this.bmp.height);
+    this.ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (
       !this.imageData ||
@@ -252,6 +323,8 @@ var CanvasCycle = {
     this.paused = false;
     this.pausedTime = 0;
     $("btn_pause").innerHTML = "Pause";
+    this.activeFilename = img.filename || "image.json";
+    this.resetView();
     this.renderCyclesEditor();
     this.hideLoading();
     this.run();
@@ -320,7 +393,20 @@ var CanvasCycle = {
     );
     this.lastBrightness = this.globalBrightness;
     this.lastHighlightColor = this.highlightColor;
-    this.ctx.putImageData(this.imageData, 0, 0);
+    var off = document.createElement("canvas");
+    off.width = this.bmp.width;
+    off.height = this.bmp.height;
+    off.getContext("2d").putImageData(this.imageData, 0, 0);
+    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+    this.ctx.drawImage(
+      off,
+      this.view.offsetX,
+      this.view.offsetY,
+      this.bmp.width * this.view.zoom,
+      this.bmp.height * this.view.zoom,
+    );
+    if (this.view.zoom >= 6) this.drawPixelGrid();
 
     TweenManager.logic(this.clock++);
     FrameCount.count();
@@ -444,7 +530,6 @@ var CanvasCycle = {
 
   syncUploadedImageData: function () {
     if (
-      this.currentSource !== "uploaded" ||
       !this.uploadedImageData ||
       !this.bmp
     )
@@ -494,9 +579,7 @@ var CanvasCycle = {
         var img = JSON.parse(reader.result);
         img.filename = file.name;
         CanvasCycle.uploadedImageData = img;
-        CanvasCycle.currentSource = "uploaded";
         CanvasCycle.processImage(img);
-        $("btn_return_uploaded").setClass("disabled", false);
       } catch (err) {
         $("d_debug").innerHTML = "Invalid JSON upload";
       }
@@ -537,9 +620,7 @@ var CanvasCycle = {
           cycles: [],
         };
         CanvasCycle.uploadedImageData = img;
-        CanvasCycle.currentSource = "uploaded";
         CanvasCycle.processImage(img);
-        $("btn_return_uploaded").setClass("disabled", false);
       } catch (err) {
         $("d_debug").innerHTML = err.message;
       }
@@ -548,21 +629,10 @@ var CanvasCycle = {
     e.target.value = "";
   },
 
-  resumeUploadedImage: function () {
-    if (!this.uploadedImageData) return;
-    this.currentSource = "uploaded";
-    this.processImage(JSON.parse(JSON.stringify(this.uploadedImageData)));
-  },
-
   buildDownloadPayload: function () {
     if (!this.bmp) return null;
     return {
-      filename:
-        this.currentSource === "uploaded"
-          ? this.uploadedImageData && this.uploadedImageData.filename
-          : scenes[this.sceneIdx]
-            ? scenes[this.sceneIdx].name + ".json"
-            : "image.json",
+      filename: this.activeFilename || "image.json",
       width: this.bmp.width,
       height: this.bmp.height,
       pixels: this.bmp.pixels,
@@ -613,7 +683,7 @@ var CanvasCycle = {
       "application/json",
       payload.filename || "canvascycle-export.json",
     );
-    if (this.currentSource === "uploaded") this.uploadedImageData = payload;
+    this.uploadedImageData = payload;
   },
 
   downloadCurrentEmbed: function () {
@@ -625,7 +695,7 @@ var CanvasCycle = {
       "",
     );
     this.downloadBlob(script, "text/javascript", base + ".embed.js");
-    if (this.currentSource === "uploaded") this.uploadedImageData = payload;
+    this.uploadedImageData = payload;
   },
 
   showLoading: function () {
@@ -681,10 +751,129 @@ var CanvasCycle = {
     this.saveSettings();
   },
   setBlendShift: function (enabled) {
-    $("btn_blendshift_on").setClass("selected", enabled);
-    $("btn_blendshift_off").setClass("selected", !enabled);
+    $("chk_blend").checked = !!enabled;
     this.settings.blendShiftEnabled = enabled;
     this.saveSettings();
+  },
+
+  setTool: function (tool) {
+    this.activeTool = tool;
+    ["zoom", "pencil", "eyedropper", "move"].forEach(function (name) {
+      $("tool_" + name).setClass("active", name === tool);
+    });
+    this.updateCanvasCursor();
+  },
+
+  updateCanvasCursor: function (minus) {
+    var canvas = $("mycanvas");
+    if (this.activeTool === "pencil") canvas.style.cursor = "crosshair";
+    else if (this.activeTool === "eyedropper") canvas.style.cursor = "copy";
+    else if (this.activeTool === "move")
+      canvas.style.cursor = this.dragging ? "grabbing" : "grab";
+    else canvas.style.cursor = minus ? "zoom-out" : "zoom-in";
+  },
+
+  canvasToImagePixel: function (e) {
+    if (!this.bmp) return null;
+    var rect = $("mycanvas").getBoundingClientRect();
+    var x = Math.floor((e.clientX - rect.left - this.view.offsetX) / this.view.zoom);
+    var y = Math.floor((e.clientY - rect.top - this.view.offsetY) / this.view.zoom);
+    if (x < 0 || y < 0 || x >= this.bmp.width || y >= this.bmp.height) return null;
+    return { x: x, y: y };
+  },
+
+  onCanvasClick: function (e) {
+    var pixel = this.canvasToImagePixel(e);
+    if (!pixel) return;
+    if (this.activeTool === "zoom") this.applyZoomClick(e, pixel);
+    else if (this.activeTool === "pencil") this.paintPixel(pixel.x, pixel.y);
+    else if (this.activeTool === "eyedropper") this.pickPixelColor(pixel.x, pixel.y);
+  },
+
+  onCanvasMouseDown: function (e) {
+    if (this.activeTool !== "move") return;
+    this.dragging = true;
+    this.dragStartX = e.clientX;
+    this.dragStartY = e.clientY;
+    this.dragStartOffsetX = this.view.offsetX;
+    this.dragStartOffsetY = this.view.offsetY;
+    this.updateCanvasCursor();
+  },
+
+  onCanvasMouseMove: function (e) {
+    this.updateCanvasCursor(e.altKey);
+    if (!this.dragging || this.activeTool !== "move") return;
+    this.view.offsetX = this.dragStartOffsetX + (e.clientX - this.dragStartX);
+    this.view.offsetY = this.dragStartOffsetY + (e.clientY - this.dragStartY);
+  },
+
+  applyZoomClick: function (e, pixel) {
+    var oldZoom = this.view.zoom;
+    var nextZoom = oldZoom;
+    if (e.altKey) {
+      if (oldZoom > 1) nextZoom = Math.max(1, oldZoom - 1);
+      else nextZoom = Math.max(0.25, oldZoom - 0.25);
+    } else nextZoom = Math.min(10, oldZoom + 1);
+    var sx = pixel.x * oldZoom + this.view.offsetX;
+    var sy = pixel.y * oldZoom + this.view.offsetY;
+    this.view.zoom = nextZoom;
+    this.view.offsetX = sx - pixel.x * nextZoom;
+    this.view.offsetY = sy - pixel.y * nextZoom;
+  },
+
+  paintPixel: function (x, y) {
+    var idx = this.findOrCreateColorIndex(this.currentPaintColor);
+    if (idx < 0) return;
+    this.bmp.pixels[y * this.bmp.width + x] = idx;
+    this.bmp.optimize();
+  },
+
+  pickPixelColor: function (x, y) {
+    var idx = this.bmp.pixels[y * this.bmp.width + x];
+    var c = this.bmp.palette.baseColors[idx];
+    if (!c) return;
+    this.currentPaintColor = [c.red, c.green, c.blue];
+    this.updateColorChip();
+  },
+
+  findOrCreateColorIndex: function (rgb) {
+    var base = this.bmp.palette.baseColors;
+    for (var i = 0; i < base.length; i++) {
+      if (base[i].red === rgb[0] && base[i].green === rgb[1] && base[i].blue === rgb[2]) return i;
+    }
+    if (base.length >= 256) return -1;
+    base.push(new Color(rgb[0], rgb[1], rgb[2]));
+    return base.length - 1;
+  },
+
+  resetView: function () {
+    var canvas = $("mycanvas");
+    this.view.zoom = 1;
+    if (!this.bmp) return;
+    this.view.offsetX = Math.floor((canvas.width - this.bmp.width) / 2);
+    this.view.offsetY = Math.floor((canvas.height - this.bmp.height) / 2);
+  },
+
+  drawPixelGrid: function () {
+    var ctx = this.ctx;
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 1;
+    for (var x = 0; x <= this.bmp.width; x++) {
+      var px = this.view.offsetX + x * this.view.zoom + 0.5;
+      ctx.beginPath(); ctx.moveTo(px, this.view.offsetY); ctx.lineTo(px, this.view.offsetY + this.bmp.height * this.view.zoom); ctx.stroke();
+    }
+    for (var y = 0; y <= this.bmp.height; y++) {
+      var py = this.view.offsetY + y * this.view.zoom + 0.5;
+      ctx.beginPath(); ctx.moveTo(this.view.offsetX, py); ctx.lineTo(this.view.offsetX + this.bmp.width * this.view.zoom, py); ctx.stroke();
+    }
+    ctx.restore();
+  },
+
+  updateColorChip: function () {
+    var chip = $("tool_color_chip");
+    chip.style.backgroundColor =
+      "rgb(" + this.currentPaintColor[0] + "," + this.currentPaintColor[1] + "," + this.currentPaintColor[2] + ")";
   },
 };
 
