@@ -23,6 +23,7 @@ var CanvasCycle = {
   uploadedImageData: null,
   sourceImageData: null,
   currentSource: "sample",
+  hasUnsavedEdits: false,
   activeFilename: "",
   pendingSceneIdx: -1,
   pendingSceneName: "",
@@ -406,7 +407,7 @@ var CanvasCycle = {
 
   switchSceneByIndex: function (sceneIdx) {
     var name = scenes[sceneIdx].name;
-    if (this.bmp) {
+    if (this.shouldConfirmSceneSwitch()) {
       this.pendingSceneIdx = sceneIdx;
       this.pendingSceneName = name;
       $("scene_modal").setClass("hidden", false);
@@ -415,6 +416,7 @@ var CanvasCycle = {
     }
     this.sceneIdx = sceneIdx;
     this.currentSource = "sample";
+    this.hasUnsavedEdits = false;
     this.loadImage(name);
     this.updateSceneSelection();
     this.closeFileMenu();
@@ -431,9 +433,20 @@ var CanvasCycle = {
     if (!this.pendingSceneName) return this.cancelSceneSwitch();
     this.sceneIdx = this.pendingSceneIdx;
     this.currentSource = "sample";
+    this.hasUnsavedEdits = false;
     this.loadImage(this.pendingSceneName);
     this.cancelSceneSwitch();
     this.closeFileMenu();
+  },
+
+  shouldConfirmSceneSwitch: function () {
+    if (!this.bmp) return false;
+    if (this.currentSource !== "sample") return true;
+    return this.hasUnsavedEdits;
+  },
+
+  markImageEdited: function () {
+    this.hasUnsavedEdits = true;
   },
 
   modalExportJSON: function () {
@@ -663,6 +676,7 @@ var CanvasCycle = {
       if (key === "active") {
         cyc.active = !!val;
         CanvasCycle.bmp.optimize();
+        CanvasCycle.markImageEdited();
         CanvasCycle.syncUploadedImageData();
         return;
       }
@@ -674,6 +688,7 @@ var CanvasCycle = {
       }
       cyc[key] = isNaN(val) ? 0 : val;
       CanvasCycle.bmp.optimize();
+      CanvasCycle.markImageEdited();
       CanvasCycle.syncUploadedImageData();
     };
   },
@@ -683,6 +698,7 @@ var CanvasCycle = {
     this.bmp.palette.cycles.push(new Cycle(280, 0, 0, 0, true));
     this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
     this.bmp.optimize();
+    this.markImageEdited();
     this.renderCyclesEditor();
     this.syncUploadedImageData();
   },
@@ -698,6 +714,7 @@ var CanvasCycle = {
     this.bmp.palette.cycles.splice(cycleIdx, 1);
     this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
     this.bmp.optimize();
+    this.markImageEdited();
     this.renderCyclesEditor();
     this.syncUploadedImageData();
   },
@@ -752,6 +769,7 @@ var CanvasCycle = {
     for (var p = 0; p < this.bmp.pixels.length; p++)
       this.bmp.pixels[p] = remap[this.bmp.pixels[p]];
     this.bmp.optimize();
+    this.markImageEdited();
     this.renderDirty = true;
     this.syncUploadedImageData();
   },
@@ -765,6 +783,8 @@ var CanvasCycle = {
         var img = JSON.parse(reader.result);
         img.filename = file.name;
         CanvasCycle.uploadedImageData = img;
+        CanvasCycle.currentSource = "upload";
+        CanvasCycle.hasUnsavedEdits = false;
         CanvasCycle.processImage(img);
       } catch (err) {
         $("d_debug").innerHTML = "Invalid JSON upload";
@@ -806,6 +826,8 @@ var CanvasCycle = {
           cycles: [],
         };
         CanvasCycle.uploadedImageData = img;
+        CanvasCycle.currentSource = "upload";
+        CanvasCycle.hasUnsavedEdits = false;
         CanvasCycle.processImage(img);
       } catch (err) {
         $("d_debug").innerHTML = err.message;
@@ -1026,6 +1048,7 @@ var CanvasCycle = {
     if (this.bmp.pixels[pixelIdx] === idx) return;
     this.bmp.pixels[pixelIdx] = idx;
     this.bmp.optimize();
+    this.markImageEdited();
     this.renderDirty = true;
     this.syncUploadedImageData();
   },
@@ -1045,6 +1068,7 @@ var CanvasCycle = {
     }
     if (base.length >= 256) return -1;
     base.push(new Color(rgb[0], rgb[1], rgb[2]));
+    this.markImageEdited();
     this.renderDirty = true;
     this.syncUploadedImageData();
     return base.length - 1;
