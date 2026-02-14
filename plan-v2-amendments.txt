@@ -1,0 +1,21 @@
+I need some bug fixes and adjustments for the features we added to canvascycle-mx in our last action.
+
+The pencil tool works irregularly. When I select the pencil tool, then click on the image, no pixels change immediately. Sometimes, when I move the cursor away from the image, some pixels update after the fact, but even this behavior is inconsistent. It should be that when I click on a pixel with the pencil tool, the pixel should update to show its new color immediately. Also be sure that changes we make this way are being written back to the json data in memory for this image.
+
+The File menu item in the main menu looks like a button. I would prefer for it to look like an OS style menu item, so that it is left justified and the height of the menubar and shows a background-color when its menu is open.
+
+Similarly, the menu items inside the file menu also look like buttons. They shouldn't look like buttons, but like plain lines of text that show a background-color on hover, per standard OS menu items.
+
+The Open Sample submenu doesn't work as expected. When I hover over it, it shows a submenu, but the submenu only contains one item, and appears to require a click to show the remaining list items, and trying to click on that hides the whole menu without making a selection. Expected behavior is: hover over Open Sample item to reveal the complete list; hovering over submenu list items should highlight them with a background color, the same as top level menu items; clicking on a submenu list item should make that selection.
+
+Palettes should be draggable. Apply an alternating line motif to the top 10 or 12 pixels of the palettes to indicate that they're draggable, as per standard UI practice. Move the cycles palette below the palette area. Move the image editing palette so its top is near the top of the canvas.
+
+The cycles palette should be one row tall. We can achieve this by moving the Blend item to the right of the speed selection buttons, and moving the pause button to the right of that. We can remove the text label from the blend icon. Remove the text label from the pause button, and use standard pause / play icons instead, which will allow us to make that button much smaller. 
+
+Since we're removing text labels, let's add tooltips with text labels to all floating palette icons.
+
+In the cycles area, the remove cycles buttons are too wide - set each row's remove button to a standard button width; the same width as the cycles speed buttons will do. Make the cycles container the same width as the canvas.
+
+For the color chip in the tools palette, let's make that clickable. Clicking it should reveal a second tier popup containing another copy of the current color palette. Clicking on an element in that color palette will set the selected color. Clicking outside that popup will dispel it. The color chips in the popup palette can be smaller than the one we're showing on the main stage. Let's say 8px by 8px.
+
+When we hover over a color chip in the main color palette, it shows a color #xxx. Let's add to that, the rgb value and hex value of the hovered chip.
