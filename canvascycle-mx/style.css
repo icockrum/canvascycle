@@ -71,6 +71,9 @@ div.clear {
 	display: flex;
 	flex-direction: row;
 }
+#d_header .row:first-of-type {
+	display: none;
+}
 
 #d_scene_selector {
 	line-height: 26px;
@@ -332,7 +335,7 @@ div.clear {
 }
 .cycle_row {
 	align-items: end;
-	margin-bottom: 8px;
+	/* margin-bottom: 8px; */
 }
 .cycle_id {
 	font-weight: bold;

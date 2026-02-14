@@ -377,8 +377,8 @@ var CanvasCycle = {
         '<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' +
         idx +
         '" data-key="active"' +
-        (cyc.active === false ? '' : ' checked="checked"') +
-        '></label>' +
+        (cyc.active === false ? "" : ' checked="checked"') +
+        "></label>" +
         '<div class="button cycle_remove" data-action="remove" data-cycle="' +
         idx +
         '">-</div>';
@@ -398,7 +398,8 @@ var CanvasCycle = {
       var cidx = parseInt(t.getAttribute("data-cycle"), 10);
       var key = t.getAttribute("data-key");
       var cyc = CanvasCycle.bmp.palette.cycles[cidx];
-      var val = t.type === "checkbox" ? (t.checked ? 1 : 0) : parseInt(t.value, 10);
+      var val =
+        t.type === "checkbox" ? (t.checked ? 1 : 0) : parseInt(t.value, 10);
       if (key === "active") {
         cyc.active = !!val;
         CanvasCycle.bmp.optimize();
@@ -449,7 +450,13 @@ var CanvasCycle = {
     )
       return;
     this.uploadedImageData.cycles = this.bmp.palette.cycles.map(function (c) {
-      return { low: c.low, high: c.high, rate: c.rate, reverse: c.reverse, active: c.active !== false };
+      return {
+        low: c.low,
+        high: c.high,
+        rate: c.rate,
+        reverse: c.reverse,
+        active: c.active !== false,
+      };
     });
   },
 
@@ -563,7 +570,13 @@ var CanvasCycle = {
         return [c.red, c.green, c.blue];
       }),
       cycles: this.bmp.palette.cycles.map(function (c) {
-        return { low: c.low, high: c.high, rate: c.rate, reverse: c.reverse, active: c.active !== false };
+        return {
+          low: c.low,
+          high: c.high,
+          rate: c.rate,
+          reverse: c.reverse,
+          active: c.active !== false,
+        };
       }),
     };
   },
