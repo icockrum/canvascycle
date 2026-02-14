@@ -27,7 +27,7 @@ var CanvasCycle = {
   pendingSceneIdx: -1,
   pendingSceneName: "",
   view: { zoom: 1, minZoom: 0.25, maxZoom: 10, offsetX: 0, offsetY: 0 },
-  activeTool: "zoom",
+  activeTool: null,
   dragging: false,
   dragStartX: 0,
   dragStartY: 0,
@@ -73,7 +73,7 @@ var CanvasCycle = {
     this.populateScenes(0);
     this.applyStoredPrefs();
     this.setGridOverlay(this.settings.gridOverlay);
-    this.setTool("zoom");
+    this.setTool(null);
     this.updateColorChip();
     this.loadImage(scenes[0].name);
     this.sceneIdx = 0;
@@ -170,6 +170,7 @@ var CanvasCycle = {
       var handle = el ? el.querySelector(".palette-grip") : null;
       if (!el || !handle) return;
       handle.addEventListener("mousedown", function (e) {
+        if (e.button !== 0) return;
         e.preventDefault();
         CanvasCycle.paletteDrag = {
           el: el,
@@ -186,6 +187,9 @@ var CanvasCycle = {
       d.el.style.left = d.left + (e.clientX - d.startX) + "px";
       d.el.style.top = d.top + (e.clientY - d.startY) + "px";
       d.el.style.right = "auto";
+    });
+    window.addEventListener("contextmenu", function () {
+      CanvasCycle.paletteDrag = null;
     });
     window.addEventListener("mouseup", function () {
       CanvasCycle.paletteDrag = null;
@@ -279,8 +283,23 @@ var CanvasCycle = {
 
   bindKeyboardNavigation: function () {
     document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        if (CanvasCycle.activeTool || CanvasCycle.dragging || CanvasCycle.paletteDrag) {
+          e.preventDefault();
+        }
+        CanvasCycle.disableToolsAndDragging();
+        return;
+      }
       CanvasCycle.handlePaletteArrowKey(e);
     });
+  },
+
+  disableToolsAndDragging: function () {
+    this.setTool(null);
+    this.dragging = false;
+    this.isPointerDown = false;
+    this.paletteDrag = null;
+    this.updateCanvasCursor();
   },
 
   isArrowKeyReservedTarget: function (el) {
@@ -935,16 +954,17 @@ var CanvasCycle = {
   },
 
   setTool: function (tool) {
-    this.activeTool = tool;
+    this.activeTool = tool || null;
     ["zoom", "pencil", "eyedropper", "move"].forEach(function (name) {
-      $("tool_" + name).setClass("active", name === tool);
+      $("tool_" + name).setClass("active", name === CanvasCycle.activeTool);
     });
     this.updateCanvasCursor();
   },
 
   updateCanvasCursor: function (minus) {
     var canvas = $("mycanvas");
-    if (this.activeTool === "pencil") canvas.style.cursor = "crosshair";
+    if (!this.activeTool) canvas.style.cursor = "default";
+    else if (this.activeTool === "pencil") canvas.style.cursor = "crosshair";
     else if (this.activeTool === "eyedropper") canvas.style.cursor = "copy";
     else if (this.activeTool === "move")
       canvas.style.cursor = this.dragging ? "grabbing" : "grab";
