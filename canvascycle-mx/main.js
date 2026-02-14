@@ -15,6 +15,8 @@ var CanvasCycle = {
   lastBrightness: 0,
   sceneIdx: -1,
   highlightColor: -1,
+  hoverHighlightColor: -1,
+  keyboardHighlightColor: -1,
   selectedColor: -1,
   paused: false,
   pausedTime: 0,
@@ -43,6 +45,7 @@ var CanvasCycle = {
     FrameCount.init();
     this.handleResize();
     this.buildPalette();
+    this.bindKeyboardNavigation();
     this.bindUploadControls();
     this.populateScenes(0);
     this.applyStoredPrefs();
@@ -59,10 +62,12 @@ var CanvasCycle = {
       div.className = "palette_color";
       div.draggable = true;
       div.onmouseover = function () {
-        CanvasCycle.highlightColor = this._idx;
+        CanvasCycle.hoverHighlightColor = this._idx;
+        CanvasCycle.updateHighlightColor();
       };
       div.onmouseout = function () {
-        CanvasCycle.highlightColor = -1;
+        CanvasCycle.hoverHighlightColor = -1;
+        CanvasCycle.updateHighlightColor();
       };
       div.onclick = function () {
         CanvasCycle.toggleSelectedColor(this._idx);
@@ -93,6 +98,71 @@ var CanvasCycle = {
     $("fe_upload_json").addEventListener("change", function (e) {
       CanvasCycle.handleJSONUpload(e);
     });
+  },
+
+  bindKeyboardNavigation: function () {
+    document.addEventListener("keydown", function (e) {
+      CanvasCycle.handlePaletteArrowKey(e);
+    });
+  },
+
+  isArrowKeyReservedTarget: function (el) {
+    if (!el || el === document.body) return false;
+    if (el.isContentEditable) return true;
+    var tag = (el.tagName || "").toLowerCase();
+    if (tag === "textarea" || tag === "select") return true;
+    if (tag === "input") return true;
+    return false;
+  },
+
+  getPaletteColumns: function () {
+    var firstChip = $("pal_0");
+    if (!firstChip) return 1;
+    var firstTop = firstChip.offsetTop;
+    var cols = 0;
+    for (var i = 0; i < 256; i++) {
+      var chip = $("pal_" + i);
+      if (!chip || chip.offsetTop !== firstTop) break;
+      cols++;
+    }
+    return Math.max(1, cols);
+  },
+
+  handlePaletteArrowKey: function (e) {
+    if (!this.bmp) return;
+    var key = e.key;
+    if (
+      key !== "ArrowUp" &&
+      key !== "ArrowDown" &&
+      key !== "ArrowLeft" &&
+      key !== "ArrowRight"
+    )
+      return;
+    if (this.isArrowKeyReservedTarget(document.activeElement)) return;
+
+    var current = this.highlightColor;
+    if (current < 0 || current > 255) current = 0;
+
+    var cols = this.getPaletteColumns();
+    var next = current;
+    if (key === "ArrowLeft") next = current - 1;
+    else if (key === "ArrowRight") next = current + 1;
+    else if (key === "ArrowUp") next = current - cols;
+    else if (key === "ArrowDown") next = current + cols;
+
+    if (next < 0) next = 0;
+    if (next > 255) next = 255;
+
+    this.keyboardHighlightColor = next;
+    this.updateHighlightColor();
+    e.preventDefault();
+  },
+
+  updateHighlightColor: function () {
+    this.highlightColor =
+      this.hoverHighlightColor !== -1
+        ? this.hoverHighlightColor
+        : this.keyboardHighlightColor;
   },
 
   populateScenes: function (initialSceneIdx) {
@@ -176,6 +246,9 @@ var CanvasCycle = {
     }
 
     this.globalBrightness = 1.0;
+    this.hoverHighlightColor = -1;
+    this.keyboardHighlightColor = -1;
+    this.updateHighlightColor();
     this.paused = false;
     this.pausedTime = 0;
     $("btn_pause").innerHTML = "Pause";
