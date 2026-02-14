@@ -3,8 +3,8 @@ body {
 	color: #888;
 	font-family: Helvetica, sans-serif;
 	font-size: 11px;
-	overflow-x: hidden;
-	overflow-y: auto;
+	/* overflow-x: hidden; */
+	/* overflow-y: auto; */
 	margin: 0;
 	padding: 0;
 	width: 100%;
@@ -23,6 +23,10 @@ a:hover {
 	/* margin: 15px 0px 15px 0px; */
 	width: 150px;
 }
+.large_palette #palette_display {
+	width: 350px;
+}
+
 
 div.palette_color {
 	float: left;
@@ -31,6 +35,10 @@ div.palette_color {
 	border: 1px solid #555;
 	margin: 1px 0px 0px 1px;
 }
+.large_palette  div.palette_color {
+	width: 20px;
+	height: 20px;
+}
 
 div.clear {
 	clear: both;
@@ -38,17 +46,26 @@ div.clear {
 
 #container {
 	position: relative;
-	display: none;
+	/* display: none; */
 	margin: 10px auto;
+	display: flex;
+	gap: 20px;
+	justify-content: center;
 }
 
 #d_header {
 	margin-bottom: 10px;
 	width: 100%;
 	display: flex;
-	align-items: center;
+	/* align-items: center; */
 	gap: 8px;
-	flex-wrap: wrap;
+	/* flex-wrap: wrap; */
+	flex-direction: column;
+}
+
+#d_header .row {
+	display: flex;
+	flex-direction: row;
 }
 
 #d_scene_selector {
@@ -116,10 +133,20 @@ div.clear {
 	z-index: 1;
 	position: relative;
 	float: left;
-	width: 150px;
-	height: 480px;
+	/* width: 150px; */
+	/* height: 480px; */
 	/* border:1px solid #444; */
 	margin-left: 15px;
+}
+
+#options_controls {
+	display: flex;
+	gap: 15px;
+	    align-items: flex-end;
+}
+#options_controls .section {
+	    flex: 1;
+    white-space: nowrap;
 }
 
 #d_debug {
@@ -132,11 +159,12 @@ div.clear {
 	margin-bottom: 20px;
 }
 
-div.label {
+.label {
 	font-weight: bold;
 	color: #ccc;
 	/* text-shadow: #777 -1px -1px 1px; */
 	margin: 1px 0px 3px 0px;
+	display: block;
 }
 
 .button {
