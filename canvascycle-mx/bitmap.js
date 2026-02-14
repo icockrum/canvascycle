@@ -28,7 +28,7 @@ Class.create( 'Bitmap', {
 		var cycles = this.palette.cycles;
 		for (var idx = 0, len = cycles.length; idx < len; idx++) {
 			var cycle = cycles[idx];
-			if (cycle.rate) {
+			if (cycle.active !== false && cycle.rate) {
 				// cycle is animated
 				for (idy = cycle.low; idy <= cycle.high; idy++) {
 					optColors[idy] = 1;

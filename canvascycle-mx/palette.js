@@ -27,12 +27,14 @@ Class.create( 'Cycle', {
 	reverse: 0,
 	low: 0,
 	high: 0,
+	active: true,
 	
-	__construct: function(r, rev, l, h) {
+	__construct: function(r, rev, l, h, active) {
 		this.rate = r;
 		this.reverse = rev;
 		this.low = l;
 		this.high = h;
+		this.active = (active !== false);
 	}
 } );
 
@@ -69,7 +71,7 @@ Class.create( 'Palette', {
 		this.cycles = [];
 		for (var idx = 0, len = cycls.length; idx < len; idx++) {
 			var cyc = cycls[idx];
-			this.cycles.push( new Cycle( cyc.rate, cyc.reverse, cyc.low, cyc.high ) );
+			this.cycles.push( new Cycle( cyc.rate, cyc.reverse, cyc.low, cyc.high, cyc.active ) );
 		}
 		
 		this.numColors = this.baseColors.length;
@@ -157,7 +159,7 @@ Class.create( 'Palette', {
 		if (Palette.ENABLE_CYCLING) {
 			for (i=0; i<this.numCycles; i++) {
 				var cycle = this.cycles[i];
-				if (cycle.rate) {
+			if (cycle.active !== false && cycle.rate) {
 					cycleSize = (cycle.high - cycle.low) + 1;
 					cycleRate = cycle.rate / Math.floor(Palette.CYCLE_SPEED / speedAdjust);
 					
