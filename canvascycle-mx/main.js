@@ -21,6 +21,7 @@ var CanvasCycle = {
   paused: false,
   pausedTime: 0,
   uploadedImageData: null,
+  sourceImageData: null,
   currentSource: "sample",
   activeFilename: "",
   pendingSceneIdx: -1,
@@ -33,6 +34,10 @@ var CanvasCycle = {
   dragStartOffsetX: 0,
   dragStartOffsetY: 0,
   currentPaintColor: [0, 0, 0],
+  isPointerDown: false,
+  renderDirty: false,
+  paletteDrag: null,
+  colorPopupOpen: false,
 
   settings: {
     showOptions: true,
@@ -60,6 +65,9 @@ var CanvasCycle = {
     this.bindUploadControls();
     this.bindMenus();
     this.bindCanvasTools();
+    this.bindPaletteDragging();
+    this.positionPalettes();
+    this.bindColorChipPopup();
     this.populateScenes(0);
     this.applyStoredPrefs();
     this.setTool("zoom");
@@ -121,20 +129,26 @@ var CanvasCycle = {
   },
 
   bindMenus: function () {
-    $("btn_file_menu").addEventListener("click", function (e) {
+    var trigger = $("btn_file_menu");
+    var menu = $("file_menu");
+    trigger.addEventListener("click", function (e) {
       e.stopPropagation();
-      var menu = $("file_menu");
       var isHidden = /(^|\s)hidden(\s|$)/.test(menu.className);
       menu.setClass("hidden", !isHidden);
+      trigger.setClass("open", isHidden);
     });
+    menu.addEventListener("click", function (e) { e.stopPropagation(); });
     document.addEventListener("click", function () {
-      $("file_menu").setClass("hidden", true);
+      menu.setClass("hidden", true);
+      trigger.setClass("open", false);
+      CanvasCycle.closeColorChipPopup();
     });
   },
 
   bindCanvasTools: function () {
     var canvas = $("mycanvas");
     canvas.addEventListener("mousedown", function (e) {
+      CanvasCycle.isPointerDown = true;
       CanvasCycle.onCanvasMouseDown(e);
     });
     canvas.addEventListener("mousemove", function (e) {
@@ -142,11 +156,96 @@ var CanvasCycle = {
     });
     window.addEventListener("mouseup", function () {
       CanvasCycle.dragging = false;
+      CanvasCycle.isPointerDown = false;
       CanvasCycle.updateCanvasCursor();
     });
-    canvas.addEventListener("click", function (e) {
-      CanvasCycle.onCanvasClick(e);
+  },
+
+  bindPaletteDragging: function () {
+    ["cycle_palette", "image_palette"].forEach(function (id) {
+      var el = $(id);
+      var handle = el ? el.querySelector(".palette-grip") : null;
+      if (!el || !handle) return;
+      handle.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        CanvasCycle.paletteDrag = {
+          el: el,
+          startX: e.clientX,
+          startY: e.clientY,
+          left: el.offsetLeft,
+          top: el.offsetTop,
+        };
+      });
     });
+    window.addEventListener("mousemove", function (e) {
+      if (!CanvasCycle.paletteDrag) return;
+      var d = CanvasCycle.paletteDrag;
+      d.el.style.left = d.left + (e.clientX - d.startX) + "px";
+      d.el.style.top = d.top + (e.clientY - d.startY) + "px";
+      d.el.style.right = "auto";
+    });
+    window.addEventListener("mouseup", function () {
+      CanvasCycle.paletteDrag = null;
+    });
+  },
+
+  positionPalettes: function () {
+    var canvas = $("mycanvas");
+    if (!canvas) return;
+    var rect = canvas.getBoundingClientRect();
+    var scrollX = window.scrollX || 0;
+    var scrollY = window.scrollY || 0;
+    var imagePalette = $("image_palette");
+    var cyclePalette = $("cycle_palette");
+    var paletteDisplay = $("palette_display");
+    if (imagePalette) {
+      imagePalette.style.left = rect.right + 12 + scrollX + "px";
+      imagePalette.style.top = rect.top + scrollY + "px";
+      imagePalette.style.right = "auto";
+    }
+    if (cyclePalette && paletteDisplay) {
+      var pRect = paletteDisplay.getBoundingClientRect();
+      cyclePalette.style.left = pRect.left + scrollX + "px";
+      cyclePalette.style.top = pRect.bottom + 12 + scrollY + "px";
+      cyclePalette.style.right = "auto";
+    }
+  },
+
+  bindColorChipPopup: function () {
+    $("tool_color_chip").addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (CanvasCycle.colorPopupOpen) CanvasCycle.closeColorChipPopup();
+      else CanvasCycle.openColorChipPopup();
+    });
+  },
+
+  openColorChipPopup: function () {
+    if (!this.bmp) return;
+    var popup = $("color_chip_popup");
+    popup.innerHTML = "";
+    for (var i = 0; i < this.bmp.palette.baseColors.length; i++) {
+      var c = this.bmp.palette.baseColors[i];
+      var chip = document.createElement("div");
+      chip.className = "popup-chip";
+      chip.title = "Color " + i;
+      chip.style.backgroundColor = "rgb(" + c.red + "," + c.green + "," + c.blue + ")";
+      chip._idx = i;
+      chip.onclick = function (ev) {
+        ev.stopPropagation();
+        var picked = CanvasCycle.bmp.palette.baseColors[this._idx];
+        CanvasCycle.currentPaintColor = [picked.red, picked.green, picked.blue];
+        CanvasCycle.updateColorChip();
+        CanvasCycle.closeColorChipPopup();
+      };
+      popup.appendChild(chip);
+    }
+    popup.setClass("hidden", false);
+    this.colorPopupOpen = true;
+  },
+
+  closeColorChipPopup: function () {
+    $("color_chip_popup").setClass("hidden", true);
+    this.colorPopupOpen = false;
   },
 
   bindKeyboardNavigation: function () {
@@ -215,21 +314,32 @@ var CanvasCycle = {
   },
 
   populateScenes: function (initialSceneIdx) {
-    var html = '<select id="fe_scene" onChange="CanvasCycle.switchScene(this)">';
+    var wrap = $("d_scene_selector");
+    wrap.innerHTML = "";
     for (var i = 0; i < scenes.length; i++) {
-      html +=
-        '<option value="' +
-        scenes[i].name +
-        '"' +
-        (i === initialSceneIdx ? ' selected="selected"' : "") +
-        ">" +
-        scenes[i].title +
-        "</option>";
+      var item = document.createElement("div");
+      item.className = "menu-item sample-item" + (i === initialSceneIdx ? " selected" : "");
+      item.textContent = scenes[i].title;
+      item._sceneIdx = i;
+      item.onclick = function (e) {
+        e.stopPropagation();
+        CanvasCycle.switchSceneByIndex(this._sceneIdx);
+      };
+      wrap.appendChild(item);
     }
-    html += "</select>";
-    $("d_scene_selector").innerHTML = html;
   },
 
+
+  updateSceneSelection: function () {
+    var nodes = $("d_scene_selector").querySelectorAll(".sample-item");
+    for (var i = 0; i < nodes.length; i++) $(nodes[i]).setClass("selected", i === this.sceneIdx);
+  },
+
+  closeFileMenu: function () {
+    $("file_menu").setClass("hidden", true);
+    $("btn_file_menu").setClass("open", false);
+    $("menu_open_sample").setClass("submenu-open", false);
+  },
   applyStoredPrefs: function () {
     var prefs = this.cookie.get("settings");
     if (!prefs) return;
@@ -242,26 +352,28 @@ var CanvasCycle = {
     this.sceneIdx += dir;
     if (this.sceneIdx >= scenes.length) this.sceneIdx = 0;
     else if (this.sceneIdx < 0) this.sceneIdx = scenes.length - 1;
-    $("fe_scene").selectedIndex = this.sceneIdx;
-    this.switchScene($("fe_scene"));
+    this.switchSceneByIndex(this.sceneIdx);
   },
 
-  switchScene: function (menu) {
-    var name = menu.options[menu.selectedIndex].value;
+  switchSceneByIndex: function (sceneIdx) {
+    var name = scenes[sceneIdx].name;
     if (this.bmp) {
-      this.pendingSceneIdx = menu.selectedIndex;
+      this.pendingSceneIdx = sceneIdx;
       this.pendingSceneName = name;
       $("scene_modal").setClass("hidden", false);
+      this.closeFileMenu();
       return;
     }
-    this.sceneIdx = menu.selectedIndex;
+    this.sceneIdx = sceneIdx;
     this.currentSource = "sample";
     this.loadImage(name);
+    this.updateSceneSelection();
+    this.closeFileMenu();
   },
 
   cancelSceneSwitch: function () {
     $("scene_modal").setClass("hidden", true);
-    if (this.sceneIdx >= 0) $("fe_scene").selectedIndex = this.sceneIdx;
+    this.updateSceneSelection();
     this.pendingSceneIdx = -1;
     this.pendingSceneName = "";
   },
@@ -272,6 +384,7 @@ var CanvasCycle = {
     this.currentSource = "sample";
     this.loadImage(this.pendingSceneName);
     this.cancelSceneSwitch();
+    this.closeFileMenu();
   },
 
   modalExportJSON: function () {
@@ -298,6 +411,7 @@ var CanvasCycle = {
   },
 
   processImage: function (img) {
+    this.sourceImageData = img;
     this.bmp = new Bitmap(img);
     this.bmp.optimize();
     var canvas = $("mycanvas");
@@ -322,10 +436,14 @@ var CanvasCycle = {
     this.updateHighlightColor();
     this.paused = false;
     this.pausedTime = 0;
-    $("btn_pause").innerHTML = "Pause";
+    $("btn_pause").innerHTML = "⏸";
+    $("btn_pause").title = "Pause";
     this.activeFilename = img.filename || "image.json";
     this.resetView();
     this.renderCyclesEditor();
+    this.updateSceneSelection();
+    this.closeColorChipPopup();
+    this.positionPalettes();
     this.hideLoading();
     this.run();
   },
@@ -344,7 +462,9 @@ var CanvasCycle = {
   togglePlayback: function () {
     this.paused = !this.paused;
     if (this.paused) this.pausedTime = GetTickCount();
-    $("btn_pause").innerHTML = this.paused ? "Resume" : "Pause";
+    var btn = $("btn_pause");
+    btn.innerHTML = this.paused ? "▶" : "⏸";
+    btn.title = this.paused ? "Play" : "Pause";
   },
 
   toggleSelectedColor: function (idx) {
@@ -369,10 +489,13 @@ var CanvasCycle = {
         "rgb(" + clr.red + "," + clr.green + "," + clr.blue + ")";
     }
     this.updatePaletteSelection();
-    $("d_debug").innerHTML =
-      "FPS: " +
-      FrameCount.current +
-      (this.highlightColor !== -1 ? " - Color #" + this.highlightColor : "");
+    var debug = "FPS: " + FrameCount.current;
+    if (this.highlightColor !== -1) {
+      var c = this.bmp.palette.baseColors[this.highlightColor] || { red: 0, green: 0, blue: 0 };
+      var hex = ((1 << 24) + (c.red << 16) + (c.green << 8) + c.blue).toString(16).slice(1).toUpperCase();
+      debug += " - Color #" + this.highlightColor + " rgb(" + c.red + "," + c.green + "," + c.blue + ") #" + hex;
+    }
+    $("d_debug").innerHTML = debug;
 
     var renderTime = this.paused ? this.pausedTime : GetTickCount();
     this.bmp.palette.cycle(
@@ -388,9 +511,11 @@ var CanvasCycle = {
     this.bmp.render(
       this.imageData,
       !this.paused &&
+        !this.renderDirty &&
         this.lastBrightness === this.globalBrightness &&
         this.highlightColor === this.lastHighlightColor,
     );
+    this.renderDirty = false;
     this.lastBrightness = this.globalBrightness;
     this.lastHighlightColor = this.highlightColor;
     var off = document.createElement("canvas");
@@ -529,20 +654,30 @@ var CanvasCycle = {
   },
 
   syncUploadedImageData: function () {
-    if (
-      !this.uploadedImageData ||
-      !this.bmp
-    )
-      return;
-    this.uploadedImageData.cycles = this.bmp.palette.cycles.map(function (c) {
-      return {
-        low: c.low,
-        high: c.high,
-        rate: c.rate,
-        reverse: c.reverse,
-        active: c.active !== false,
-      };
-    });
+    if (!this.bmp) return;
+    var payload = {
+      pixels: this.bmp.pixels,
+      colors: this.bmp.palette.baseColors.map(function (c) { return [c.red, c.green, c.blue]; }),
+      cycles: this.bmp.palette.cycles.map(function (c) {
+        return {
+          low: c.low,
+          high: c.high,
+          rate: c.rate,
+          reverse: c.reverse,
+          active: c.active !== false,
+        };
+      }),
+    };
+    if (this.sourceImageData) {
+      this.sourceImageData.pixels = payload.pixels;
+      this.sourceImageData.colors = payload.colors;
+      this.sourceImageData.cycles = payload.cycles;
+    }
+    if (this.uploadedImageData) {
+      this.uploadedImageData.pixels = payload.pixels;
+      this.uploadedImageData.colors = payload.colors;
+      this.uploadedImageData.cycles = payload.cycles;
+    }
   },
 
   reorderPalette: function (fromIdx, toIdx) {
@@ -568,6 +703,8 @@ var CanvasCycle = {
     for (var p = 0; p < this.bmp.pixels.length; p++)
       this.bmp.pixels[p] = remap[this.bmp.pixels[p]];
     this.bmp.optimize();
+    this.renderDirty = true;
+    this.syncUploadedImageData();
   },
 
   handleJSONUpload: function (e) {
@@ -729,7 +866,7 @@ var CanvasCycle = {
   },
 
   handleResize: function () {
-    // this.repositionContainer();
+    this.positionPalettes();
   },
 
   saveSettings: function () {
@@ -782,26 +919,25 @@ var CanvasCycle = {
     return { x: x, y: y };
   },
 
-  onCanvasClick: function (e) {
-    var pixel = this.canvasToImagePixel(e);
-    if (!pixel) return;
-    if (this.activeTool === "zoom") this.applyZoomClick(e, pixel);
-    else if (this.activeTool === "pencil") this.paintPixel(pixel.x, pixel.y);
-    else if (this.activeTool === "eyedropper") this.pickPixelColor(pixel.x, pixel.y);
-  },
-
   onCanvasMouseDown: function (e) {
-    if (this.activeTool !== "move") return;
-    this.dragging = true;
-    this.dragStartX = e.clientX;
-    this.dragStartY = e.clientY;
-    this.dragStartOffsetX = this.view.offsetX;
-    this.dragStartOffsetY = this.view.offsetY;
-    this.updateCanvasCursor();
+    var pixel = this.canvasToImagePixel(e);
+    if (this.activeTool === "zoom" && pixel) this.applyZoomClick(e, pixel);
+    else if (this.activeTool === "pencil" && pixel) this.paintPixel(pixel.x, pixel.y);
+    else if (this.activeTool === "eyedropper" && pixel) this.pickPixelColor(pixel.x, pixel.y);
+    else if (this.activeTool === "move") {
+      this.dragging = true;
+      this.dragStartX = e.clientX;
+      this.dragStartY = e.clientY;
+      this.dragStartOffsetX = this.view.offsetX;
+      this.dragStartOffsetY = this.view.offsetY;
+      this.updateCanvasCursor();
+    }
   },
 
   onCanvasMouseMove: function (e) {
     this.updateCanvasCursor(e.altKey);
+    var pixel = this.canvasToImagePixel(e);
+    if (this.isPointerDown && this.activeTool === "pencil" && pixel) this.paintPixel(pixel.x, pixel.y);
     if (!this.dragging || this.activeTool !== "move") return;
     this.view.offsetX = this.dragStartOffsetX + (e.clientX - this.dragStartX);
     this.view.offsetY = this.dragStartOffsetY + (e.clientY - this.dragStartY);
@@ -822,10 +958,15 @@ var CanvasCycle = {
   },
 
   paintPixel: function (x, y) {
+    if (!this.bmp) return;
     var idx = this.findOrCreateColorIndex(this.currentPaintColor);
     if (idx < 0) return;
-    this.bmp.pixels[y * this.bmp.width + x] = idx;
+    var pixelIdx = y * this.bmp.width + x;
+    if (this.bmp.pixels[pixelIdx] === idx) return;
+    this.bmp.pixels[pixelIdx] = idx;
     this.bmp.optimize();
+    this.renderDirty = true;
+    this.syncUploadedImageData();
   },
 
   pickPixelColor: function (x, y) {
@@ -843,6 +984,8 @@ var CanvasCycle = {
     }
     if (base.length >= 256) return -1;
     base.push(new Color(rgb[0], rgb[1], rgb[2]));
+    this.renderDirty = true;
+    this.syncUploadedImageData();
     return base.length - 1;
   },
 
