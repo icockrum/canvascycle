@@ -15,7 +15,9 @@ var CanvasCycle = {
   lastBrightness: 0,
   sceneIdx: -1,
   highlightColor: -1,
+  selectedColor: -1,
   paused: false,
+  pausedTime: 0,
   uploadedImageData: null,
   currentSource: "sample",
 
@@ -61,6 +63,9 @@ var CanvasCycle = {
       };
       div.onmouseout = function () {
         CanvasCycle.highlightColor = -1;
+      };
+      div.onclick = function () {
+        CanvasCycle.toggleSelectedColor(this._idx);
       };
       div.ondragstart = function (e) {
         e.dataTransfer.setData("text/plain", "" + this._idx);
@@ -172,6 +177,7 @@ var CanvasCycle = {
 
     this.globalBrightness = 1.0;
     this.paused = false;
+    this.pausedTime = 0;
     $("btn_pause").innerHTML = "Pause";
     this.renderCyclesEditor();
     this.hideLoading();
@@ -191,7 +197,20 @@ var CanvasCycle = {
 
   togglePlayback: function () {
     this.paused = !this.paused;
+    if (this.paused) this.pausedTime = GetTickCount();
     $("btn_pause").innerHTML = this.paused ? "Resume" : "Pause";
+  },
+
+  toggleSelectedColor: function (idx) {
+    this.selectedColor = this.selectedColor === idx ? -1 : idx;
+    this.updatePaletteSelection();
+  },
+
+  updatePaletteSelection: function () {
+    for (var idx = 0; idx < 256; idx++) {
+      var chip = $("pal_" + idx);
+      if (chip) chip.setClass("selected", idx === this.selectedColor);
+    }
   },
 
   animate: function () {
@@ -203,31 +222,32 @@ var CanvasCycle = {
       div.style.backgroundColor =
         "rgb(" + clr.red + "," + clr.green + "," + clr.blue + ")";
     }
+    this.updatePaletteSelection();
     $("d_debug").innerHTML =
       "FPS: " +
       FrameCount.current +
       (this.highlightColor !== -1 ? " - Color #" + this.highlightColor : "");
 
-    if (!this.paused) {
-      this.bmp.palette.cycle(
-        this.bmp.palette.baseColors,
-        GetTickCount(),
-        this.settings.speedAdjust,
-        this.settings.blendShiftEnabled,
-      );
-      if (this.highlightColor > -1)
-        this.bmp.palette.colors[this.highlightColor] = new Color(255, 255, 255);
-      if (this.globalBrightness < 1.0)
-        this.bmp.palette.burnOut(1.0 - this.globalBrightness, 1.0);
-      this.bmp.render(
-        this.imageData,
+    var renderTime = this.paused ? this.pausedTime : GetTickCount();
+    this.bmp.palette.cycle(
+      this.bmp.palette.baseColors,
+      renderTime,
+      this.settings.speedAdjust,
+      this.settings.blendShiftEnabled,
+    );
+    if (this.highlightColor > -1)
+      this.bmp.palette.colors[this.highlightColor] = new Color(255, 255, 255);
+    if (this.globalBrightness < 1.0)
+      this.bmp.palette.burnOut(1.0 - this.globalBrightness, 1.0);
+    this.bmp.render(
+      this.imageData,
+      !this.paused &&
         this.lastBrightness === this.globalBrightness &&
-          this.highlightColor === this.lastHighlightColor,
-      );
-      this.lastBrightness = this.globalBrightness;
-      this.lastHighlightColor = this.highlightColor;
-      this.ctx.putImageData(this.imageData, 0, 0);
-    }
+        this.highlightColor === this.lastHighlightColor,
+    );
+    this.lastBrightness = this.globalBrightness;
+    this.lastHighlightColor = this.highlightColor;
+    this.ctx.putImageData(this.imageData, 0, 0);
 
     TweenManager.logic(this.clock++);
     FrameCount.count();
@@ -268,6 +288,11 @@ var CanvasCycle = {
         '" data-key="high" value="' +
         cyc.high +
         '"></label>' +
+        '<label class="cycle_field cycle_active"><span>Active</span><input type="checkbox" data-cycle="' +
+        idx +
+        '" data-key="active"' +
+        (cyc.active === false ? '' : ' checked="checked"') +
+        '></label>' +
         '<div class="button cycle_remove" data-action="remove" data-cycle="' +
         idx +
         '">-</div>';
@@ -287,7 +312,13 @@ var CanvasCycle = {
       var cidx = parseInt(t.getAttribute("data-cycle"), 10);
       var key = t.getAttribute("data-key");
       var cyc = CanvasCycle.bmp.palette.cycles[cidx];
-      var val = parseInt(t.value, 10);
+      var val = t.type === "checkbox" ? (t.checked ? 1 : 0) : parseInt(t.value, 10);
+      if (key === "active") {
+        cyc.active = !!val;
+        CanvasCycle.bmp.optimize();
+        CanvasCycle.syncUploadedImageData();
+        return;
+      }
       if (key === "low" || key === "high" || key === "reverse") {
         if (isNaN(val)) val = 0;
         if (key !== "reverse") val = Math.max(0, Math.min(255, val));
@@ -302,7 +333,7 @@ var CanvasCycle = {
 
   addCycle: function () {
     if (!this.bmp) return;
-    this.bmp.palette.cycles.push(new Cycle(280, 0, 0, 0));
+    this.bmp.palette.cycles.push(new Cycle(280, 0, 0, 0, true));
     this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
     this.bmp.optimize();
     this.renderCyclesEditor();
@@ -332,7 +363,7 @@ var CanvasCycle = {
     )
       return;
     this.uploadedImageData.cycles = this.bmp.palette.cycles.map(function (c) {
-      return { low: c.low, high: c.high, rate: c.rate, reverse: c.reverse };
+      return { low: c.low, high: c.high, rate: c.rate, reverse: c.reverse, active: c.active !== false };
     });
   },
 
@@ -446,7 +477,7 @@ var CanvasCycle = {
         return [c.red, c.green, c.blue];
       }),
       cycles: this.bmp.palette.cycles.map(function (c) {
-        return { low: c.low, high: c.high, rate: c.rate, reverse: c.reverse };
+        return { low: c.low, high: c.high, rate: c.rate, reverse: c.reverse, active: c.active !== false };
       }),
     };
   },
@@ -465,7 +496,7 @@ var CanvasCycle = {
 
   buildEmbedScript: function (payload) {
     var runtime =
-      "function m(v,n,x){var z=Number(v);return Number.isNaN(z)?n:Math.max(n,Math.min(x,z))}function n(i){return{filename:i.filename||'untitled.json',width:i.width,height:i.height,pixels:i.pixels instanceof Uint8Array?i.pixels:Uint8Array.from(i.pixels||[]),colors:(i.colors||[]).map(function(c){return[c[0],c[1],c[2]]}),cycles:(i.cycles||[]).map(function(c){return{low:m(c.low,0,255),high:m(c.high,0,255),rate:Number(c.rate)||0,reverse:m(c.reverse,0,2)}})}}function g(b,y,t){var o=b.map(function(c){return[c[0],c[1],c[2]]});for(var i=0;i<y.length;i++){var c=y[i];if(!c||!c.rate)continue;var l=Math.max(0,c.low|0),h=Math.min(255,c.high|0);if(h<=l)continue;var s=h-l+1,a=Math.floor((t/(1000/(c.rate/280)))%s),r=c.reverse===2?(s-a)%s:a;if(!r)continue;var q=o.slice(l,h+1);for(var j=0;j<s;j++)o[l+((j+r)%s)]=q[j]}return o}function P(cv){this.canvas=cv;this.ctx=cv.getContext('2d');this.imageData=null;this.data=null;this.paused=false;this.raf=0;this.lastDraw=0;this.targetFps=60;this.loop=this.loop.bind(this)}P.prototype.loadFromData=function(d){this.data=n(d);this.canvas.width=this.data.width;this.canvas.height=this.data.height;this.imageData=this.ctx.createImageData(this.data.width,this.data.height);this.lastDraw=performance.now();if(!this.raf)this.raf=requestAnimationFrame(this.loop)};P.prototype.loop=function(now){if(this.data&&!this.paused){var min=1000/this.targetFps;if(now-this.lastDraw>=min){this.render(now);this.lastDraw=now}}this.raf=requestAnimationFrame(this.loop)};P.prototype.render=function(now){var colors=g(this.data.colors,this.data.cycles,now),src=this.data.pixels,dst=this.imageData.data;for(var i=0;i<src.length;i++){var c=colors[src[i]]||[0,0,0],di=i*4;dst[di]=c[0];dst[di+1]=c[1];dst[di+2]=c[2];dst[di+3]=255}this.ctx.putImageData(this.imageData,0,0)};";
+      "function m(v,n,x){var z=Number(v);return Number.isNaN(z)?n:Math.max(n,Math.min(x,z))}function n(i){return{filename:i.filename||'untitled.json',width:i.width,height:i.height,pixels:i.pixels instanceof Uint8Array?i.pixels:Uint8Array.from(i.pixels||[]),colors:(i.colors||[]).map(function(c){return[c[0],c[1],c[2]]}),cycles:(i.cycles||[]).map(function(c){return{low:m(c.low,0,255),high:m(c.high,0,255),rate:Number(c.rate)||0,reverse:m(c.reverse,0,2),active:c.active!==false}})}}function g(b,y,t){var o=b.map(function(c){return[c[0],c[1],c[2]]});for(var i=0;i<y.length;i++){var c=y[i];if(!c||c.active===false||!c.rate)continue;var l=Math.max(0,c.low|0),h=Math.min(255,c.high|0);if(h<=l)continue;var s=h-l+1,a=Math.floor((t/(1000/(c.rate/280)))%s),r=c.reverse===2?(s-a)%s:a;if(!r)continue;var q=o.slice(l,h+1);for(var j=0;j<s;j++)o[l+((j+r)%s)]=q[j]}return o}function P(cv){this.canvas=cv;this.ctx=cv.getContext('2d');this.imageData=null;this.data=null;this.paused=false;this.raf=0;this.lastDraw=0;this.targetFps=60;this.loop=this.loop.bind(this)}P.prototype.loadFromData=function(d){this.data=n(d);this.canvas.width=this.data.width;this.canvas.height=this.data.height;this.imageData=this.ctx.createImageData(this.data.width,this.data.height);this.lastDraw=performance.now();if(!this.raf)this.raf=requestAnimationFrame(this.loop)};P.prototype.loop=function(now){if(this.data&&!this.paused){var min=1000/this.targetFps;if(now-this.lastDraw>=min){this.render(now);this.lastDraw=now}}this.raf=requestAnimationFrame(this.loop)};P.prototype.render=function(now){var colors=g(this.data.colors,this.data.cycles,now),src=this.data.pixels,dst=this.imageData.data;for(var i=0;i<src.length;i++){var c=colors[src[i]]||[0,0,0],di=i*4;dst[di]=c[0];dst[di+1]=c[1];dst[di+2]=c[2];dst[di+3]=255}this.ctx.putImageData(this.imageData,0,0)};";
     return (
       '(function(){"use strict";' +
       runtime +
