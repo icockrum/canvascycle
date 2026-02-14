@@ -38,12 +38,14 @@ var CanvasCycle = {
   renderDirty: false,
   paletteDrag: null,
   colorPopupOpen: false,
+  popupPlacementPadding: 8,
 
   settings: {
     showOptions: true,
     targetFPS: 60,
     blendShiftEnabled: true,
     speedAdjust: 1.0,
+    gridOverlay: true,
   },
 
   contentSize: {
@@ -70,6 +72,7 @@ var CanvasCycle = {
     this.bindColorChipPopup();
     this.populateScenes(0);
     this.applyStoredPrefs();
+    this.setGridOverlay(this.settings.gridOverlay);
     this.setTool("zoom");
     this.updateColorChip();
     this.loadImage(scenes[0].name);
@@ -205,8 +208,11 @@ var CanvasCycle = {
     }
     if (cyclePalette && paletteDisplay) {
       var pRect = paletteDisplay.getBoundingClientRect();
-      cyclePalette.style.left = pRect.left + scrollX + "px";
-      cyclePalette.style.top = pRect.bottom + 12 + scrollY + "px";
+      var cyclesRow = $("d_cycles_row");
+      var cyclesRect = cyclesRow ? cyclesRow.getBoundingClientRect() : pRect;
+      cyclePalette.style.left =
+        pRect.left + scrollX + Math.floor((pRect.width - cyclePalette.offsetWidth) / 2) + "px";
+      cyclePalette.style.top = cyclesRect.top + scrollY + "px";
       cyclePalette.style.right = "auto";
     }
   },
@@ -240,7 +246,30 @@ var CanvasCycle = {
       popup.appendChild(chip);
     }
     popup.setClass("hidden", false);
+    this.positionColorChipPopup();
     this.colorPopupOpen = true;
+  },
+
+
+
+  positionColorChipPopup: function () {
+    var popup = $("color_chip_popup");
+    var chip = $("tool_color_chip");
+    if (!popup || !chip) return;
+    var chipRect = chip.getBoundingClientRect();
+    var popupRect = popup.getBoundingClientRect();
+    var pad = this.popupPlacementPadding;
+
+    var left = chipRect.right + pad;
+    if (left + popupRect.width > window.innerWidth - pad) left = chipRect.left - popupRect.width - pad;
+    left = Math.max(pad, Math.min(left, window.innerWidth - popupRect.width - pad));
+
+    var top = chipRect.bottom - popupRect.height;
+    if (top < pad) top = chipRect.top + pad;
+    if (top + popupRect.height > window.innerHeight - pad) top = window.innerHeight - popupRect.height - pad;
+
+    popup.style.left = left + "px";
+    popup.style.top = Math.max(pad, top) + "px";
   },
 
   closeColorChipPopup: function () {
@@ -346,6 +375,7 @@ var CanvasCycle = {
     this.setRate(prefs.targetFPS || 60);
     this.setSpeed(prefs.speedAdjust || 1.0);
     this.setBlendShift(prefs.blendShiftEnabled !== false);
+    this.setGridOverlay(prefs.gridOverlay !== false);
   },
 
   jumpScene: function (dir) {
@@ -531,7 +561,7 @@ var CanvasCycle = {
       this.bmp.width * this.view.zoom,
       this.bmp.height * this.view.zoom,
     );
-    if (this.view.zoom >= 6) this.drawPixelGrid();
+    if (this.settings.gridOverlay && this.view.zoom >= 6) this.drawPixelGrid();
 
     TweenManager.logic(this.clock++);
     FrameCount.count();
@@ -867,6 +897,7 @@ var CanvasCycle = {
 
   handleResize: function () {
     this.positionPalettes();
+    if (this.colorPopupOpen) this.positionColorChipPopup();
   },
 
   saveSettings: function () {
@@ -891,6 +922,16 @@ var CanvasCycle = {
     $("chk_blend").checked = !!enabled;
     this.settings.blendShiftEnabled = enabled;
     this.saveSettings();
+  },
+  setGridOverlay: function (enabled) {
+    var value = !!enabled;
+    this.settings.gridOverlay = value;
+    $("tool_grid").setClass("active", value);
+    this.saveSettings();
+  },
+
+  toggleGridOverlay: function () {
+    this.setGridOverlay(!this.settings.gridOverlay);
   },
 
   setTool: function (tool) {

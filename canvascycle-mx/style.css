@@ -24,7 +24,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: Inter,
 .menu-trigger { height: 100%; border: 0; border-radius: 0; padding: 0 12px; background: transparent; cursor:pointer; text-align:left; }
 .menu-trigger.open { background: var(--panel-2); }
 #file_menu_wrap { position: relative; }
-.popup-menu { position:absolute; top:36px; left:0; width:220px; background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:6px; z-index:20; }
+.popup-menu { position:absolute; top:40px; left:0; width:220px; background: var(--panel); border:1px solid var(--line); border-top:0; border-radius:0 0 10px 10px; padding:6px; z-index:20; }
 .popup-menu.hidden,.modal.hidden { display:none; }
 .menu-item { display:flex; justify-content:space-between; width:100%; box-sizing:border-box; padding:6px 10px; margin:1px 0; cursor:pointer; text-align:left; border-radius:4px; }
 .menu-item:hover { background: var(--panel-2); }
@@ -52,21 +52,26 @@ div.palette_color.selected { border-color: var(--accent); }
 .cycle_row input,.cycle_row select { width:100%; box-sizing:border-box; background:var(--panel-2); border:1px solid var(--line); color:var(--text); }
 .cycle_remove { width: 2.2rem; min-width: 2.2rem; padding: 4px 0; justify-self: start; }
 .tool-palette { position:fixed; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 10px 8px 10px; display:flex; flex-direction:column; gap:8px; z-index:10; }
-.palette-grip { height: 12px; margin: -2px -2px 4px -2px; border-radius: 8px 8px 4px 4px; cursor: move; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(45deg, rgba(255,255,255,0.24) 0 2px, transparent 2px 6px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.2) 0 2px, transparent 2px 6px); }
-#cycle_palette { top:64px; width:auto; min-width:360px; }
+.palette-grip { height: 12px; margin: -2px -2px 4px -2px; border-radius: 8px 8px 4px 4px; cursor: move; border-bottom: 1px solid var(--line); background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.28) 0 1px, transparent 1px 3px); }
+#cycle_palette { top:64px; width:auto; }
 #image_palette { top:64px; width:56px; align-items:center; }
 .palette-title { font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
 .palette-row { display:flex; align-items:center; gap:6px; }
-.speed-row { display:grid; grid-template-columns: repeat(5, 1fr); gap:4px; min-width: 200px; }
-.blend-toggle { display:flex; align-items:center; gap:4px; }
+.speed-row { display:grid; grid-template-columns: repeat(5, 1fr); gap:0; min-width: 200px; }
+.speed-row .button { border-radius:0; }
+.speed-row .button:first-child { border-radius:6px 0 0 6px; }
+.speed-row .button:last-child { border-radius:0 6px 6px 0; }
+.speed-row .button + .button { margin-left:-1px; }
+.blend-toggle { display:flex; align-items:center; gap:4px; margin: 0 10px; }
 .blend-icon { width:14px; height:14px; border-radius:4px; background: linear-gradient(135deg,#ff7b7b,#ffd86f,#7be0ff); border:1px solid var(--line); }
 .icon-btn { width: 30px; height: 30px; padding: 0; font-size: 14px; }
 .tool-btn { width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
 .tool-chip { width:36px; height:36px; border:1px solid var(--line); border-radius:8px; background:#000; }
-#color_chip_popup { position:absolute; left:50px; bottom:8px; width:152px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:6px; display:grid; grid-template-columns:repeat(16, 8px); gap:1px; box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+#color_chip_popup { position:fixed; width:152px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:6px; display:grid; grid-template-columns:repeat(16, 8px); gap:1px; box-shadow:0 4px 20px rgba(0,0,0,0.4); z-index:25; }
 #color_chip_popup .popup-chip { width:8px; height:8px; border:1px solid rgba(255,255,255,.18); cursor:pointer; }
 #color_chip_popup.hidden { display:none; }
 .modal { position:fixed; inset:0; background:rgba(0,0,0,.55); display:grid; place-items:center; z-index:30; }
 .modal-card { width:380px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; }
 .modal-actions { display:flex; justify-content:flex-end; gap:8px; }
+.button.default-action { border-width:2px; padding:6px 14px; }
 @keyframes ccspin { from{transform:rotate(0)} to{transform:rotate(360deg)} }

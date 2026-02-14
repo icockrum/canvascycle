@@ -84,6 +84,7 @@
         <button class="tool-btn" id="tool_eyedropper" title="Eyedropper" onClick="CC.setTool('eyedropper')">🧪</button>
         <button class="tool-btn" id="tool_move" title="Move" onClick="CC.setTool('move')">✋</button>
         <hr />
+        <button class="tool-btn" id="tool_grid" title="Toggle Pixel Grid" onClick="CC.toggleGridOverlay()">▦</button>
         <button class="tool-btn" id="tool_reset" title="Reset View" onClick="CC.resetView()">↻</button>
         <button class="tool-chip" id="tool_color_chip" title="Current color"></button>
         <div id="color_chip_popup" class="hidden"></div>
@@ -96,7 +97,7 @@
         <div class="modal-actions">
           <button class="button" type="button" onClick="CC.modalExportJSON()">Export JSON</button>
           <button class="button" type="button" onClick="CC.cancelSceneSwitch()">Cancel</button>
-          <button class="button" type="button" onClick="CC.confirmSceneSwitch()">Open Selection</button>
+          <button class="button default-action" type="button" onClick="CC.confirmSceneSwitch()" autofocus>Open Selection</button>
         </div>
       </div>
     </div>
