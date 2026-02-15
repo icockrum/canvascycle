@@ -728,14 +728,14 @@ var CanvasCycle = {
 			var row = document.createElement("div");
 			row.className = "cycle_row";
 			row.innerHTML =
-				'<div class="cycle_id">C' +
-				(idx + 1) +
-				"</div>" +
 				'<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' +
 				idx +
 				'" data-key="active"' +
 				(cyc.active === false ? "" : ' checked="checked"') +
 				"></label>" +
+				'<div class="cycle_id">C' +
+				(idx + 1) +
+				"</div>" +
 				'<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' +
 				idx +
 				'" data-key="low" value="' +
