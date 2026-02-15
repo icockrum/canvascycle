@@ -39,6 +39,7 @@ var CanvasCycle = {
 	renderDirty: false,
 	paletteDrag: null,
 	colorPopupOpen: false,
+	sortPopupOpen: false,
 	popupPlacementPadding: 8,
 	spaceKeyDown: false,
 	metaKeyDown: false,
@@ -47,6 +48,7 @@ var CanvasCycle = {
 	temporaryToolPrevious: null,
 	forceZoomOutCursor: false,
 	cycleTimeOffset: 0,
+	pendingPaletteSortMode: "",
 
 	settings: {
 		showOptions: true,
@@ -78,6 +80,7 @@ var CanvasCycle = {
 		this.bindPaletteDragging();
 		this.positionPalettes();
 		this.bindColorChipPopup();
+		this.bindPaletteSortPopup();
 		this.populateScenes(0);
 		this.applyStoredPrefs();
 		this.setGridOverlay(this.settings.gridOverlay);
@@ -158,6 +161,7 @@ var CanvasCycle = {
 			menu.setClass("hidden", true);
 			trigger.setClass("open", false);
 			CanvasCycle.closeColorChipPopup();
+			CanvasCycle.closePaletteSortPopup();
 		});
 	},
 
@@ -243,6 +247,164 @@ var CanvasCycle = {
 			if (CanvasCycle.colorPopupOpen) CanvasCycle.closeColorChipPopup();
 			else CanvasCycle.openColorChipPopup();
 		});
+	},
+
+	bindPaletteSortPopup: function () {
+		var popup = $("palette_sort_popup");
+		if (!popup) return;
+		popup.addEventListener("click", function (e) {
+			e.stopPropagation();
+			var target = e.target;
+			var mode = target ? target.getAttribute("data-sort") : "";
+			if (!mode) return;
+			CanvasCycle.requestPaletteSort(mode);
+		});
+	},
+
+	togglePaletteSortPopup: function (e) {
+		if (e) e.stopPropagation();
+		if (!this.bmp) return;
+		if (this.sortPopupOpen) this.closePaletteSortPopup();
+		else this.openPaletteSortPopup();
+	},
+
+	openPaletteSortPopup: function () {
+		var popup = $("palette_sort_popup");
+		if (!popup) return;
+		popup.setClass("hidden", false);
+		this.positionPaletteSortPopup();
+		this.sortPopupOpen = true;
+	},
+
+	positionPaletteSortPopup: function () {
+		var popup = $("palette_sort_popup");
+		var btn = $("btn_palette_sort");
+		if (!popup || !btn) return;
+		var btnRect = btn.getBoundingClientRect();
+		var popupRect = popup.getBoundingClientRect();
+		var pad = this.popupPlacementPadding;
+
+		var left = btnRect.left;
+		if (left + popupRect.width > window.innerWidth - pad)
+			left = window.innerWidth - popupRect.width - pad;
+		left = Math.max(pad, left);
+
+		var top = btnRect.bottom + pad;
+		if (top + popupRect.height > window.innerHeight - pad)
+			top = btnRect.top - popupRect.height - pad;
+		top = Math.max(pad, top);
+
+		popup.style.left = left + "px";
+		popup.style.top = top + "px";
+	},
+
+	closePaletteSortPopup: function () {
+		var popup = $("palette_sort_popup");
+		if (popup) popup.setClass("hidden", true);
+		this.sortPopupOpen = false;
+	},
+
+	requestPaletteSort: function (mode) {
+		this.closePaletteSortPopup();
+		if (!this.bmp) return;
+		if (this.bmp.palette.cycles.length) {
+			this.pendingPaletteSortMode = mode;
+			$("palette_sort_warning_modal").setClass("hidden", false);
+			return;
+		}
+		this.sortPalette(mode);
+	},
+
+	cancelPaletteSortWarning: function () {
+		this.pendingPaletteSortMode = "";
+		$("palette_sort_warning_modal").setClass("hidden", true);
+	},
+
+	confirmPaletteSortWarning: function () {
+		if (!this.pendingPaletteSortMode) return this.cancelPaletteSortWarning();
+		this.bmp.palette.cycles = [];
+		this.bmp.palette.numCycles = 0;
+		var mode = this.pendingPaletteSortMode;
+		this.cancelPaletteSortWarning();
+		this.sortPalette(mode);
+	},
+
+	sortPalette: function (mode) {
+		if (!this.bmp) return;
+		var base = this.bmp.palette.baseColors;
+		var indexed = [];
+		for (var i = 0; i < base.length; i++) indexed.push({ idx: i, color: base[i] });
+		if (mode === "reverse") indexed.reverse();
+		else {
+			indexed.sort(function (a, b) {
+				return CanvasCycle.comparePaletteEntries(mode, a, b);
+			});
+		}
+		var order = [];
+		for (var n = 0; n < indexed.length; n++) order.push(indexed[n].idx);
+		this.applyPaletteOrder(order);
+	},
+
+	comparePaletteEntries: function (mode, a, b) {
+		var av = this.getPaletteSortMetric(mode, a.color);
+		var bv = this.getPaletteSortMetric(mode, b.color);
+		if (av < bv) return -1;
+		if (av > bv) return 1;
+		return a.idx - b.idx;
+	},
+
+	getPaletteSortMetric: function (mode, color) {
+		if (mode === "red") return color.red;
+		if (mode === "green") return color.green;
+		if (mode === "blue") return color.blue;
+
+		var hsv = this.rgbToHsv(color.red, color.green, color.blue);
+		if (mode === "hue") return hsv.h;
+		if (mode === "saturation") return hsv.s;
+		if (mode === "brightness") return hsv.v;
+		if (mode === "luminance")
+			return color.red * 0.2126 + color.green * 0.7152 + color.blue * 0.0722;
+		return 0;
+	},
+
+	rgbToHsv: function (r, g, b) {
+		var rn = r / 255;
+		var gn = g / 255;
+		var bn = b / 255;
+		var max = Math.max(rn, gn, bn);
+		var min = Math.min(rn, gn, bn);
+		var d = max - min;
+		var h = 0;
+		if (d !== 0) {
+			if (max === rn) h = ((gn - bn) / d) % 6;
+			else if (max === gn) h = (bn - rn) / d + 2;
+			else h = (rn - gn) / d + 4;
+			h *= 60;
+			if (h < 0) h += 360;
+		}
+		var s = max === 0 ? 0 : d / max;
+		return { h: h, s: s, v: max };
+	},
+
+	applyPaletteOrder: function (order) {
+		if (!this.bmp || !order || !order.length) return;
+		var base = this.bmp.palette.baseColors;
+		if (order.length !== base.length) return;
+		var newBase = [];
+		var remap = [];
+		for (var i = 0; i < order.length; i++) {
+			var oldIdx = order[i];
+			newBase[i] = base[oldIdx];
+			remap[oldIdx] = i;
+		}
+		this.bmp.palette.baseColors = newBase;
+		for (var p = 0; p < this.bmp.pixels.length; p++)
+			this.bmp.pixels[p] = remap[this.bmp.pixels[p]];
+		this.bmp.optimize();
+		this.markImageEdited();
+		this.renderCyclesEditor();
+		this.renderDirty = true;
+		this.syncUploadedImageData();
 	},
 
 	openColorChipPopup: function () {
@@ -587,6 +749,8 @@ var CanvasCycle = {
 		this.renderCyclesEditor();
 		this.updateSceneSelection();
 		this.closeColorChipPopup();
+		this.closePaletteSortPopup();
+		this.cancelPaletteSortWarning();
 		this.positionPalettes();
 		this.hideLoading();
 		this.run();

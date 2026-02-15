@@ -340,6 +340,20 @@ div.palette_color.selected {
 	border-radius: 8px;
 	background: #000;
 }
+
+#palette_sort_popup {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 190px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	padding: 6px 0;
+	z-index: 26;
+}
+#palette_sort_popup.hidden {
+	display: none;
+}
 #color_chip_popup {
 	position: fixed;
 	width: 152px;
