@@ -53,6 +53,8 @@ var CanvasCycle = {
 	pendingPaletteSortMode: "",
 	paletteEditColorIdx: -1,
 	paletteColorInputEl: null,
+	lastPaletteClickIdx: -1,
+	lastPaletteClickAt: 0,
 
 	settings: {
 		showOptions: true,
@@ -111,6 +113,16 @@ var CanvasCycle = {
 				CanvasCycle.updateHighlightColor();
 			};
 			div.onclick = function () {
+				var now = Date.now();
+				var isDoubleClick =
+					CanvasCycle.lastPaletteClickIdx === this._idx &&
+					now - CanvasCycle.lastPaletteClickAt <= 350;
+				CanvasCycle.lastPaletteClickIdx = this._idx;
+				CanvasCycle.lastPaletteClickAt = now;
+				if (isDoubleClick) {
+					CanvasCycle.openPaletteColorPicker(this._idx);
+					return;
+				}
 				if (CanvasCycle.activeTool === "eyedropper" && CanvasCycle.bmp) {
 					var c = CanvasCycle.bmp.palette.baseColors[this._idx];
 					if (c) {
@@ -120,11 +132,6 @@ var CanvasCycle = {
 					return;
 				}
 				CanvasCycle.toggleSelectedColor(this._idx);
-			};
-			div.ondblclick = function (e) {
-				e.preventDefault();
-				e.stopPropagation();
-				CanvasCycle.openPaletteColorPicker(this._idx);
 			};
 			div.ondragstart = function (e) {
 				e.dataTransfer.setData("text/plain", "" + this._idx);
@@ -1081,9 +1088,17 @@ var CanvasCycle = {
 		var key = field.getAttribute("data-key");
 		if (key !== "low" && key !== "high") return;
 		var idx = parseInt(field.value, 10);
+		if (isNaN(idx)) {
+			var cycleIdx = parseInt(field.getAttribute("data-cycle"), 10);
+			if (!isNaN(cycleIdx) && this.bmp.palette.cycles[cycleIdx]) {
+				idx = parseInt(this.bmp.palette.cycles[cycleIdx][key], 10);
+			}
+		}
 		if (isNaN(idx) || idx < 0 || idx >= this.bmp.palette.baseColors.length)
 			return;
 		this.selectColor(idx);
+		this.keyboardHighlightColor = idx;
+		this.updateHighlightColor();
 	},
 
 	addCycle: function () {
