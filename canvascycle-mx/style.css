@@ -173,10 +173,10 @@ div.palette_color.selected {
 #d_cycles_row {
 	background: var(--panel);
 	border: 1px solid var(--line);
-	border-radius: 10px;
-	padding: 10px;
+	border-radius: 2px;
+	padding: 10px 10px 6px 10px;
 	margin-top: 10px;
-	width: 640px;
+	width: calc(640px - 20px);
 }
 .label {
 	font-weight: 700;
@@ -200,6 +200,7 @@ div.palette_color.selected {
 #cycles_editor {
 	max-height: 240px;
 	overflow: auto;
+	border-bottom: 1px solid var(--line);
 }
 .cycle_header,
 .cycle_row {
@@ -207,6 +208,15 @@ div.palette_color.selected {
 	grid-template-columns: 2rem 4.5rem 4.5rem 4.5rem 4.5rem 4.5rem 2.2rem;
 	column-gap: 0.6rem;
 	align-items: center;
+	margin-bottom: 2px;
+	justify-items: center;
+}
+.cycle_header {
+	text-transform: uppercase;
+	font-size: 10px;
+	font-weight: bold;
+	margin-bottom: 4px;
+	color: var(--accent);
 }
 .cycle_row input,
 .cycle_row select {
@@ -217,10 +227,15 @@ div.palette_color.selected {
 	color: var(--text);
 }
 .cycle_remove {
-	width: 2.2rem;
-	min-width: 2.2rem;
-	padding: 4px 0;
+	width: 20px;
+	min-width: 20px;
+	padding: 1px 0;
 	justify-self: start;
+	border-radius: 0;
+}
+.cycle_remove:hover {
+	background: var(--text);
+	color: var(--panel-2);
 }
 .tool-palette {
 	position: fixed;
@@ -272,10 +287,11 @@ div.palette_color.selected {
 	display: grid;
 	grid-template-columns: repeat(5, 1fr);
 	gap: 0;
-	min-width: 200px;
+	min-width: 150px;
 }
 .speed-row .button {
 	border-radius: 0;
+	padding: 6px 0px;
 }
 .speed-row .button:first-child {
 	border-radius: 6px 0 0 6px;
@@ -377,4 +393,8 @@ div.palette_color.selected {
 	to {
 		transform: rotate(360deg);
 	}
+}
+#cycles_toolbar {
+	text-align: right;
+	padding-top: 6px;
 }

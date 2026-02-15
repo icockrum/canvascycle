@@ -1,124 +1,248 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Canvas Cycle MX</title>
-    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
-    <link rel="stylesheet" type="text/css" href="style.css" />
-    <script type="text/javascript" src="oop.js"></script>
-    <script type="text/javascript" src="tools.js"></script>
-    <script type="text/javascript" src="cookie.js"></script>
-    <script type="text/javascript" src="palette.js"></script>
-    <script type="text/javascript" src="bitmap.js"></script>
-    <script type="text/javascript" src="scenes.js"></script>
-    <script type="text/javascript" src="tween.js"></script>
-    <script type="text/javascript" src="framecount.js"></script>
-    <script type="text/javascript" src="lib/pako.min.js"></script>
-    <script type="text/javascript" src="lib/upng.js"></script>
-    <script type="text/javascript" src="main.js"></script>
-  </head>
-  <body class="large_palette">
-    <div id="top_menubar">
-      <div id="file_menu_wrap">
-        <button id="btn_file_menu" class="menu-trigger" type="button">File</button>
-        <div id="file_menu" class="popup-menu hidden">
-          <div id="menu_open_sample" class="menu-item has-submenu">
-            <span>Open Sample</span><span class="arrow">›</span>
-            <div id="sample_submenu" class="submenu">
-              <div id="d_scene_selector"></div>
-            </div>
-          </div>
-          <hr />
-          <label class="menu-item upload-item">Upload PNG<input id="fe_upload_png" type="file" accept=".png,image/png" /></label>
-          <label class="menu-item upload-item">Upload JSON<input id="fe_upload_json" type="file" accept=".json,application/json" /></label>
-          <hr />
-          <div class="menu-item" onClick="CC.downloadCurrentJSON()">Export JSON</div>
-          <div class="menu-item" onClick="CC.downloadCurrentEmbed()">Export Embed</div>
-        </div>
-      </div>
-    </div>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>Canvas Cycle MX</title>
+		<meta http-equiv="X-UA-Compatible" content="chrome=1" />
+		<link rel="stylesheet" type="text/css" href="style.css" />
+		<script type="text/javascript" src="oop.js"></script>
+		<script type="text/javascript" src="tools.js"></script>
+		<script type="text/javascript" src="cookie.js"></script>
+		<script type="text/javascript" src="palette.js"></script>
+		<script type="text/javascript" src="bitmap.js"></script>
+		<script type="text/javascript" src="scenes.js"></script>
+		<script type="text/javascript" src="tween.js"></script>
+		<script type="text/javascript" src="framecount.js"></script>
+		<script type="text/javascript" src="lib/pako.min.js"></script>
+		<script type="text/javascript" src="lib/upng.js"></script>
+		<script type="text/javascript" src="main.js"></script>
+	</head>
+	<body class="large_palette">
+		<div id="top_menubar">
+			<div id="file_menu_wrap">
+				<button id="btn_file_menu" class="menu-trigger" type="button">
+					File
+				</button>
+				<div id="file_menu" class="popup-menu hidden">
+					<div id="menu_open_sample" class="menu-item has-submenu">
+						<span>Open Sample</span><span class="arrow">›</span>
+						<div id="sample_submenu" class="submenu">
+							<div id="d_scene_selector"></div>
+						</div>
+					</div>
+					<hr />
+					<label class="menu-item upload-item"
+						>Upload PNG<input
+							id="fe_upload_png"
+							type="file"
+							accept=".png,image/png"
+					/></label>
+					<label class="menu-item upload-item"
+						>Upload JSON<input
+							id="fe_upload_json"
+							type="file"
+							accept=".json,application/json"
+					/></label>
+					<hr />
+					<div class="menu-item" onClick="CC.downloadCurrentJSON()">
+						Export JSON
+					</div>
+					<div class="menu-item" onClick="CC.downloadCurrentEmbed()">
+						Export Embed
+					</div>
+				</div>
+			</div>
+		</div>
 
-    <div id="container">
-      <div id="palette-column">
-        <div id="d_options">
-          <div id="palette_display"></div>
-          <div id="d_debug"></div>
-        </div>
-      </div>
+		<div id="container">
+			<div id="palette-column">
+				<div id="d_options">
+					<div id="palette_display"></div>
+					<div id="d_debug"></div>
+				</div>
+			</div>
 
-      <div id="image-column">
-        <div id="d_canvas_row">
-          <canvas id="mycanvas" width="640" height="480"></canvas>
-          <div id="d_loading"></div>
-          <div class="clear"></div>
-        </div>
+			<div id="image-column">
+				<div id="d_canvas_row">
+					<canvas id="mycanvas" width="640" height="480"></canvas>
+					<div id="d_loading"></div>
+					<div class="clear"></div>
+				</div>
 
-        <div id="d_cycles_row" class="section">
-          <div class="label">CYCLES:</div>
-          <div id="cycles_editor"></div>
-          <div id="cycles_toolbar">
-            <div class="button left right" onClick="CC.addCycle()">+ Add Cycle</div>
-          </div>
-        </div>
-      </div>
+				<div id="d_cycles_row" class="section">
+					<!-- <div class="label">CYCLES:</div> -->
+					<div id="cycles_editor"></div>
+					<div id="cycles_toolbar">
+						<div class="button left right" onClick="CC.addCycle()">
+							+ Add Cycle
+						</div>
+					</div>
+				</div>
+			</div>
 
-      <div id="cycle_palette" class="tool-palette">
-        <div class="palette-grip" title="Drag palette"></div>
-        <div class="palette-row">
-          <div class="speed-row">
-            <button id="btn_speed_025" class="button thin" title="Speed 1/4x" onClick="CC.setSpeed(0.25)">&frac14;</button>
-            <button id="btn_speed_05" class="button thin" title="Speed 1/2x" onClick="CC.setSpeed(0.5)">&frac12;</button>
-            <button id="btn_speed_1" class="button thin selected" title="Speed 1x" onClick="CC.setSpeed(1)">1</button>
-            <button id="btn_speed_2" class="button thin" title="Speed 2x" onClick="CC.setSpeed(2)">2</button>
-            <button id="btn_speed_4" class="button thin" title="Speed 4x" onClick="CC.setSpeed(4)">4</button>
-          </div>
-          <label class="blend-toggle" title="Blend shift"><span class="blend-icon"></span><input id="chk_blend" type="checkbox" checked onChange="CC.setBlendShift(this.checked)" /></label>
-          <button id="btn_pause" class="button icon-btn" title="Pause" onClick="CC.togglePlayback()">⏸</button>
-        </div>
-      </div>
+			<div id="cycle_palette" class="tool-palette">
+				<div class="palette-grip" title="Drag palette"></div>
+				<div class="palette-row">
+					<div class="speed-row">
+						<button
+							id="btn_speed_025"
+							class="button thin"
+							title="Speed 1/4x"
+							onClick="CC.setSpeed(0.25)"
+						>
+							&frac14;
+						</button>
+						<button
+							id="btn_speed_05"
+							class="button thin"
+							title="Speed 1/2x"
+							onClick="CC.setSpeed(0.5)"
+						>
+							&frac12;
+						</button>
+						<button
+							id="btn_speed_1"
+							class="button thin selected"
+							title="Speed 1x"
+							onClick="CC.setSpeed(1)"
+						>
+							1
+						</button>
+						<button
+							id="btn_speed_2"
+							class="button thin"
+							title="Speed 2x"
+							onClick="CC.setSpeed(2)"
+						>
+							2
+						</button>
+						<button
+							id="btn_speed_4"
+							class="button thin"
+							title="Speed 4x"
+							onClick="CC.setSpeed(4)"
+						>
+							4
+						</button>
+					</div>
+					<label class="blend-toggle" title="Blend shift"
+						><span class="blend-icon"></span
+						><input
+							id="chk_blend"
+							type="checkbox"
+							checked
+							onChange="CC.setBlendShift(this.checked)"
+					/></label>
+					<button
+						id="btn_pause"
+						class="button icon-btn"
+						title="Pause"
+						onClick="CC.togglePlayback()"
+					>
+						⏸
+					</button>
+				</div>
+			</div>
 
-      <div id="image_palette" class="tool-palette">
-        <div class="palette-grip" title="Drag palette"></div>
-        <button class="tool-btn" id="tool_zoom" title="Zoom" onClick="CC.setTool('zoom')">🔍</button>
-        <button class="tool-btn" id="tool_pencil" title="Pencil" onClick="CC.setTool('pencil')">✎</button>
-        <button class="tool-btn" id="tool_eyedropper" title="Eyedropper" onClick="CC.setTool('eyedropper')">🧪</button>
-        <button class="tool-btn" id="tool_move" title="Move" onClick="CC.setTool('move')">✋</button>
-        <hr />
-        <button class="tool-btn" id="tool_grid" title="Toggle Pixel Grid" onClick="CC.toggleGridOverlay()">▦</button>
-        <button class="tool-btn" id="tool_reset" title="Reset View" onClick="CC.resetView()">↻</button>
-        <button class="tool-chip" id="tool_color_chip" title="Current color"></button>
-        <div id="color_chip_popup" class="hidden"></div>
-      </div>
-    </div>
+			<div id="image_palette" class="tool-palette">
+				<div class="palette-grip" title="Drag palette"></div>
+				<button
+					class="tool-btn"
+					id="tool_zoom"
+					title="Zoom"
+					onClick="CC.setTool('zoom')"
+				>
+					🔍
+				</button>
+				<button
+					class="tool-btn"
+					id="tool_pencil"
+					title="Pencil"
+					onClick="CC.setTool('pencil')"
+				>
+					✎
+				</button>
+				<button
+					class="tool-btn"
+					id="tool_eyedropper"
+					title="Eyedropper"
+					onClick="CC.setTool('eyedropper')"
+				>
+					🧪
+				</button>
+				<button
+					class="tool-btn"
+					id="tool_move"
+					title="Move"
+					onClick="CC.setTool('move')"
+				>
+					✋
+				</button>
+				<hr />
+				<button
+					class="tool-btn"
+					id="tool_grid"
+					title="Toggle Pixel Grid"
+					onClick="CC.toggleGridOverlay()"
+				>
+					▦
+				</button>
+				<button
+					class="tool-btn"
+					id="tool_reset"
+					title="Reset View"
+					onClick="CC.resetView()"
+				>
+					↻
+				</button>
+				<button
+					class="tool-chip"
+					id="tool_color_chip"
+					title="Current color"
+				></button>
+				<div id="color_chip_popup" class="hidden"></div>
+			</div>
+		</div>
 
-    <div id="scene_modal" class="modal hidden">
-      <div class="modal-card">
-        <p>Edits to the current image will be lost.</p>
-        <div class="modal-actions">
-          <button class="button" type="button" onClick="CC.modalExportJSON()">Export JSON</button>
-          <button class="button" type="button" onClick="CC.cancelSceneSwitch()">Cancel</button>
-          <button class="button default-action" type="button" onClick="CC.confirmSceneSwitch()" autofocus>Open Selection</button>
-        </div>
-      </div>
-    </div>
+		<div id="scene_modal" class="modal hidden">
+			<div class="modal-card">
+				<p>Edits to the current image will be lost.</p>
+				<div class="modal-actions">
+					<button class="button" type="button" onClick="CC.modalExportJSON()">
+						Export JSON
+					</button>
+					<button class="button" type="button" onClick="CC.cancelSceneSwitch()">
+						Cancel
+					</button>
+					<button
+						class="button default-action"
+						type="button"
+						onClick="CC.confirmSceneSwitch()"
+						autofocus
+					>
+						Open Selection
+					</button>
+				</div>
+			</div>
+		</div>
 
-    <script>
-      if (document.addEventListener) {
-        document.addEventListener(
-          "DOMContentLoaded",
-          function () {
-            CC.init();
-          },
-          false,
-        );
-        window.addEventListener(
-          "resize",
-          function () {
-            CC.handleResize();
-          },
-          false,
-        );
-      }
-    </script>
-  </body>
+		<script>
+			if (document.addEventListener) {
+				document.addEventListener(
+					"DOMContentLoaded",
+					function () {
+						CC.init();
+					},
+					false,
+				);
+				window.addEventListener(
+					"resize",
+					function () {
+						CC.handleResize();
+					},
+					false,
+				);
+			}
+		</script>
+	</body>
 </html>
