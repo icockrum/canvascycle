@@ -16,7 +16,9 @@ var CanvasCycle = {
 	sceneIdx: -1,
 	highlightColor: -1,
 	hoverHighlightColor: -1,
+	eyedropperHoverColor: -1,
 	keyboardHighlightColor: -1,
+	highlightAffectsCanvas: true,
 	selectedColor: -1,
 	paused: false,
 	pausedTime: 0,
@@ -192,9 +194,17 @@ var CanvasCycle = {
 		canvas.addEventListener("mousemove", function (e) {
 			CanvasCycle.onCanvasMouseMove(e);
 		});
+		canvas.addEventListener("mouseleave", function () {
+			CanvasCycle.eyedropperHoverColor = -1;
+			CanvasCycle.updateHighlightColor();
+		});
 		window.addEventListener("mouseup", function () {
 			CanvasCycle.dragging = false;
 			CanvasCycle.isPointerDown = false;
+			if (CanvasCycle.activeTool !== "eyedropper") {
+				CanvasCycle.eyedropperHoverColor = -1;
+				CanvasCycle.updateHighlightColor();
+			}
 			CanvasCycle.updateCanvasCursor();
 		});
 	},
@@ -616,10 +626,18 @@ var CanvasCycle = {
 	},
 
 	updateHighlightColor: function () {
-		this.highlightColor =
-			this.hoverHighlightColor !== -1
-				? this.hoverHighlightColor
-				: this.keyboardHighlightColor;
+		if (this.hoverHighlightColor !== -1) {
+			this.highlightColor = this.hoverHighlightColor;
+			this.highlightAffectsCanvas = true;
+			return;
+		}
+		if (this.eyedropperHoverColor !== -1) {
+			this.highlightColor = this.eyedropperHoverColor;
+			this.highlightAffectsCanvas = false;
+			return;
+		}
+		this.highlightColor = this.keyboardHighlightColor;
+		this.highlightAffectsCanvas = true;
 	},
 
 	populateScenes: function (initialSceneIdx) {
@@ -861,7 +879,7 @@ var CanvasCycle = {
 			this.settings.speedAdjust,
 			this.settings.blendShiftEnabled,
 		);
-		if (this.highlightColor > -1)
+		if (this.highlightColor > -1 && this.highlightAffectsCanvas)
 			this.bmp.palette.colors[this.highlightColor] = new Color(255, 255, 255);
 		if (this.globalBrightness < 1.0)
 			this.bmp.palette.burnOut(1.0 - this.globalBrightness, 1.0);
@@ -1262,10 +1280,12 @@ var CanvasCycle = {
 	},
 
 	setTool: function (tool) {
+		if (tool !== "eyedropper") this.eyedropperHoverColor = -1;
 		this.activeTool = tool || null;
 		["zoom", "pencil", "eyedropper", "move"].forEach(function (name) {
 			$("tool_" + name).setClass("active", name === CanvasCycle.activeTool);
 		});
+		this.updateHighlightColor();
 		this.updateCanvasCursor();
 	},
 
@@ -1314,6 +1334,12 @@ var CanvasCycle = {
 	onCanvasMouseMove: function (e) {
 		this.updateCanvasCursor(e.altKey || this.forceZoomOutCursor);
 		var pixel = this.canvasToImagePixel(e);
+		if (this.activeTool === "eyedropper" && pixel) {
+			this.eyedropperHoverColor = this.bmp.pixels[pixel.y * this.bmp.width + pixel.x];
+		} else if (this.eyedropperHoverColor !== -1) {
+			this.eyedropperHoverColor = -1;
+		}
+		this.updateHighlightColor();
 		if (this.isPointerDown && this.activeTool === "pencil" && pixel)
 			this.paintPixel(pixel.x, pixel.y);
 		if (!this.dragging || this.activeTool !== "move") return;
