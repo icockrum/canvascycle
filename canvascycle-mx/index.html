@@ -104,7 +104,7 @@
 						<div class="cycle_col">Low</div>
 						<div class="cycle_col">High</div>
 						<div class="cycle_col">Rate</div>
-						<div class="cycle_col">Direction</div>
+						<div class="cycle_col">Reverse</div>
 					</div>
 					<div id="cycles_editor"></div>
 					<!-- <div id="cycles_toolbar">
@@ -362,8 +362,11 @@
 					<h3>Cycle Data</h3>
 					<div class="help-tool-list">
 						<div class="help-tool-row"><span class="help-tool-icon">＋</span><div><strong>Add Cycle</strong><p>Add a new cycle row for defining animated color ranges.</p></div></div>
-						<div class="help-tool-row"><span class="help-tool-icon">↕</span><div><strong>Direction</strong><p>Set cycle direction and mode for each row.</p></div></div>
-						<div class="help-tool-row"><span class="help-tool-icon">¼½124</span><div><strong>Speed Controls</strong><p>Use the speed controls together as one tool to change playback tempo globally.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">↕</span><div><strong>Reverse</strong><p>Toggle reverse on/off for the row. Off (0) cycles forward, On (1) cycles in reverse.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">⬇⬆</span><div><strong>Low / High</strong><p>Set the starting and ending palette indexes that define the cycle range for that row.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">⚡</span><div><strong>Rate</strong><p>Controls how fast the cycle shifts colors over time. Larger values produce faster animation.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">☑</span><div><strong>Active</strong><p>Use the checkbox to enable or disable the cycle row without deleting it.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">✕</span><div><strong>Delete</strong><p>Click the delete button to remove that cycle row.</p></div></div>
 					</div>
 
 					<h3>Import</h3>
@@ -376,7 +379,7 @@
 
 					<h3>Player</h3>
 					<p><strong>Standalone player script:</strong> Use the player script to load and play a JSON data file without the editor UI. <a href="src/player-core.js" download>Download standalone player script</a>.</p>
-					<p><strong>Standalone embeddable JSON:</strong> Pair an embeddable JSON file with a compatible player host to publish cycle animations with minimal setup.</p>
+					<p><strong>Standalone embeddable JSON:</strong> This export is self-executing. Embed it directly in any HTML page with a <code>&lt;script&gt;</code> tag&mdash;no separate player pairing is required.</p>
 				</div>
 			</div>
 		</div>

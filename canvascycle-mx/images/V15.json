@@ -261,7 +261,7 @@
 		[255, 255, 255]
 	],
 	"cycles": [
-		{ "reverse": 2, "rate": 4914, "low": 136, "high": 143 },
+		{ "reverse": 1, "rate": 4914, "low": 136, "high": 143 },
 		{ "reverse": 0, "rate": 4914, "low": 144, "high": 151 },
 		{ "reverse": 0, "rate": 4914, "low": 152, "high": 159 },
 		{ "reverse": 0, "rate": 4914, "low": 160, "high": 167 },

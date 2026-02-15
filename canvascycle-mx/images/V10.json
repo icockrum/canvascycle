@@ -261,12 +261,12 @@
 		[255, 255, 255]
 	],
 	"cycles": [
-		{ "reverse": 2, "rate": 0, "low": 253, "high": 254 },
-		{ "reverse": 2, "rate": 0, "low": 96, "high": 97 },
-		{ "reverse": 2, "rate": 0, "low": 0, "high": 0 },
-		{ "reverse": 2, "rate": 1227, "low": 196, "high": 209 },
-		{ "reverse": 2, "rate": 1227, "low": 182, "high": 195 },
-		{ "reverse": 2, "rate": 1227, "low": 168, "high": 181 },
+		{ "reverse": 1, "rate": 0, "low": 253, "high": 254 },
+		{ "reverse": 1, "rate": 0, "low": 96, "high": 97 },
+		{ "reverse": 1, "rate": 0, "low": 0, "high": 0 },
+		{ "reverse": 1, "rate": 1227, "low": 196, "high": 209 },
+		{ "reverse": 1, "rate": 1227, "low": 182, "high": 195 },
+		{ "reverse": 1, "rate": 1227, "low": 168, "high": 181 },
 		{ "reverse": 0, "rate": 1536, "low": 161, "high": 167 },
 		{ "reverse": 0, "rate": 1536, "low": 154, "high": 160 },
 		{ "reverse": 0, "rate": 1536, "low": 147, "high": 153 },

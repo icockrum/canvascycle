@@ -6,6 +6,8 @@
 	--text: #e8e8ea;
 	--muted: #a9acb5;
 	--accent: #4d8dff;
+	--link: #8eb8ff;
+	--link-hover: #b6d0ff;
 	--line: #444752;
 	--container-pad: 18px;
 	--menuheight: 40px;
@@ -22,6 +24,8 @@
 		--text: #1f2230;
 		--muted: #535c70;
 		--accent: #2b6df6;
+		--link: #1e5ee0;
+		--link-hover: #1548ad;
 		--line: #d6d9e2;
 	}
 }
@@ -277,6 +281,10 @@ div#d_debug .fps {
 	border: 1px solid var(--line);
 	color: var(--text);
 }
+.cycle_row input[type="checkbox"] {
+	width: auto;
+	accent-color: var(--accent);
+}
 .cycle_remove,
 #add_cycle {
 	width: 20px;
@@ -479,6 +487,13 @@ div#d_debug .fps {
 }
 .help-content p {
 	max-width: 600px;
+}
+.help-content a {
+	color: var(--link);
+}
+.help-content a:hover,
+.help-content a:focus-visible {
+	color: var(--link-hover);
 }
 .help-tool-list {
 	display: flex;

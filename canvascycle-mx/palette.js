@@ -31,7 +31,7 @@ Class.create( 'Cycle', {
 	
 	__construct: function(r, rev, l, h, active) {
 		this.rate = r;
-		this.reverse = rev;
+		this.reverse = (rev === 2 || rev === 1) ? 1 : 0;
 		this.low = l;
 		this.high = h;
 		this.active = (active !== false);
@@ -180,12 +180,12 @@ Class.create( 'Palette', {
 						else if (cycle.reverse == 5) cycleAmount *= (cycleSize / 2);
 					}
 
-					if (cycle.reverse == 2) this.reverseColors(this.colors, cycle);
+					if (cycle.reverse == 1) this.reverseColors(this.colors, cycle);
 
 					if (Palette.USE_BLEND_SHIFT && blendShift) this.blendShiftColors(this.colors, cycle, cycleAmount);
 					else this.shiftColors(this.colors, cycle, cycleAmount);
 
-					if (cycle.reverse == 2) this.reverseColors(this.colors, cycle);
+					if (cycle.reverse == 1) this.reverseColors(this.colors, cycle);
 					
 					cycle.cycleAmount = cycleAmount;
 				} // active cycle
