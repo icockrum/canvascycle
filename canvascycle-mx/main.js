@@ -53,6 +53,8 @@ var CanvasCycle = {
 	pendingPaletteSortMode: "",
 	paletteEditColorIdx: -1,
 	paletteColorInputEl: null,
+	lastPaletteClickIdx: -1,
+	lastPaletteClickAt: 0,
 
 	settings: {
 		showOptions: true,
@@ -111,6 +113,16 @@ var CanvasCycle = {
 				CanvasCycle.updateHighlightColor();
 			};
 			div.onclick = function () {
+				var now = Date.now();
+				var isDoubleClick =
+					CanvasCycle.lastPaletteClickIdx === this._idx &&
+					now - CanvasCycle.lastPaletteClickAt <= 350;
+				CanvasCycle.lastPaletteClickIdx = this._idx;
+				CanvasCycle.lastPaletteClickAt = now;
+				if (isDoubleClick) {
+					CanvasCycle.openPaletteColorPicker(this._idx);
+					return;
+				}
 				if (CanvasCycle.activeTool === "eyedropper" && CanvasCycle.bmp) {
 					var c = CanvasCycle.bmp.palette.baseColors[this._idx];
 					if (c) {
