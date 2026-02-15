@@ -150,7 +150,7 @@ function adjustCycleRangeForMove(cycle, fromIndex, toIndex, maxPaletteIndex) {
     remapped.push(remapIndexAfterMove(idx, fromIndex, toIndex));
   }
 
-  if (inRange(toIndex)) {
+  if (inRange(fromIndex)) {
     remapped.push(toIndex);
   }
 
