@@ -1066,6 +1066,8 @@ var CanvasCycle = {
 
 		var moved = base.splice(fromIdx, 1)[0];
 		base.splice(toIdx, 0, moved);
+		this.updateCycleRangesForPaletteMove(fromIdx, toIdx, base.length - 1);
+
 		var oldOrder = [];
 		for (var i = 0; i < base.length; i++) oldOrder[i] = i;
 		var movedIdx = oldOrder.splice(fromIdx, 1)[0];
@@ -1076,8 +1078,60 @@ var CanvasCycle = {
 			this.bmp.pixels[p] = remap[this.bmp.pixels[p]];
 		this.bmp.optimize();
 		this.markImageEdited();
+		this.renderCyclesEditor();
 		this.renderDirty = true;
 		this.syncUploadedImageData();
+	},
+
+	updateCycleRangesForPaletteMove: function (fromIdx, toIdx, maxPaletteIndex) {
+		var cycles = this.bmp && this.bmp.palette ? this.bmp.palette.cycles : null;
+		if (!cycles || !cycles.length) return;
+		for (var i = 0; i < cycles.length; i++) {
+			this.remapCycleRange(cycles[i], fromIdx, toIdx, maxPaletteIndex);
+		}
+	},
+
+	remapCycleRange: function (cycle, fromIdx, toIdx, maxPaletteIndex) {
+		if (!cycle) return;
+		var low = Math.max(0, Math.min(maxPaletteIndex, Math.min(cycle.low, cycle.high)));
+		var high = Math.max(0, Math.min(maxPaletteIndex, Math.max(cycle.low, cycle.high)));
+		if (high < low) {
+			cycle.low = low;
+			cycle.high = low;
+			return;
+		}
+
+		var inRange = function (idx) {
+			return idx >= low && idx <= high;
+		};
+		var remapped = [];
+		for (var idx = low; idx <= high; idx++) {
+			if (idx === fromIdx && !inRange(toIdx)) continue;
+			remapped.push(CanvasCycle.remapPaletteIndexAfterMove(idx, fromIdx, toIdx));
+		}
+
+		if (!inRange(fromIdx) && inRange(toIdx)) {
+			remapped.push(toIdx);
+		}
+
+		if (!remapped.length) {
+			cycle.low = low;
+			cycle.high = low;
+			return;
+		}
+
+		cycle.low = Math.max(0, Math.min(maxPaletteIndex, Math.min.apply(Math, remapped)));
+		cycle.high = Math.max(0, Math.min(maxPaletteIndex, Math.max.apply(Math, remapped)));
+	},
+
+	remapPaletteIndexAfterMove: function (index, fromIdx, toIdx) {
+		if (index === fromIdx) return toIdx;
+		if (fromIdx < toIdx) {
+			if (index > fromIdx && index <= toIdx) return index - 1;
+			return index;
+		}
+		if (index >= toIdx && index < fromIdx) return index + 1;
+		return index;
 	},
 
 	handleJSONUpload: function (e) {
