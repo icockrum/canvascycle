@@ -731,14 +731,11 @@ var CanvasCycle = {
 				'<div class="cycle_id">C' +
 				(idx + 1) +
 				"</div>" +
-				'<label class="cycle_field"><select data-cycle="' +
+				'<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' +
 				idx +
-				'" data-key="reverse"><option>0</option><option>1</option><option>2</option></select></label>' +
-				'<label class="cycle_field"><input type="number" data-cycle="' +
-				idx +
-				'" data-key="rate" value="' +
-				cyc.rate +
-				'"></label>' +
+				'" data-key="active"' +
+				(cyc.active === false ? "" : ' checked="checked"') +
+				"></label>" +
 				'<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' +
 				idx +
 				'" data-key="low" value="' +
@@ -749,11 +746,14 @@ var CanvasCycle = {
 				'" data-key="high" value="' +
 				cyc.high +
 				'"></label>' +
-				'<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' +
+				'<label class="cycle_field"><input type="number" data-cycle="' +
 				idx +
-				'" data-key="active"' +
-				(cyc.active === false ? "" : ' checked="checked"') +
-				"></label>" +
+				'" data-key="rate" value="' +
+				cyc.rate +
+				'"></label>' +
+				'<label class="cycle_field"><select data-cycle="' +
+				idx +
+				'" data-key="reverse"><option>0</option><option>1</option><option>2</option></select></label>' +
 				'<div class="button cycle_remove" data-action="remove" data-cycle="' +
 				idx +
 				'">x</div>';
