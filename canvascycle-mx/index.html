@@ -143,6 +143,14 @@
 							onChange="CC.setBlendShift(this.checked)"
 					/></label>
 					<button
+						id="btn_palette_sort"
+						class="button icon-btn"
+						title="Sort Palette"
+						onClick="CC.togglePaletteSortPopup(event)"
+					>
+						⇅
+					</button>
+					<button
 						id="btn_cycle_reset"
 						class="button icon-btn"
 						title="Reset Cycle Animation"
@@ -159,6 +167,18 @@
 						⏸
 					</button>
 				</div>
+			</div>
+			<div id="palette_sort_popup" class="popup-menu hidden">
+				<div class="menu-item" data-sort="reverse">Reverse colors</div>
+				<hr />
+				<div class="menu-item" data-sort="hue">Sort by hue</div>
+				<div class="menu-item" data-sort="saturation">Sort by saturation</div>
+				<div class="menu-item" data-sort="brightness">Sort by brightness</div>
+				<div class="menu-item" data-sort="luminance">Sort by luminance</div>
+				<hr />
+				<div class="menu-item" data-sort="red">Sort by red</div>
+				<div class="menu-item" data-sort="green">Sort by green</div>
+				<div class="menu-item" data-sort="blue">Sort by blue</div>
 			</div>
 
 			<div id="image_palette" class="tool-palette">
@@ -218,6 +238,28 @@
 					title="Current color"
 				></button>
 				<div id="color_chip_popup" class="hidden"></div>
+			</div>
+		</div>
+
+		<div id="palette_sort_warning_modal" class="modal hidden">
+			<div class="modal-card">
+				<p>WARNING: reordering the palette will delete cycle data.</p>
+				<div class="modal-actions">
+					<button
+						class="button"
+						type="button"
+						onClick="CC.cancelPaletteSortWarning()"
+					>
+						Cancel
+					</button>
+					<button
+						class="button default-action"
+						type="button"
+						onClick="CC.confirmPaletteSortWarning()"
+					>
+						Proceed
+					</button>
+				</div>
 			</div>
 		</div>
 
