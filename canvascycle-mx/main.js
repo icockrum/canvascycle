@@ -58,6 +58,7 @@ var CanvasCycle = {
 	undoBuffer: [],
 	maxUndoCount: 100,
 	paletteEditOriginalColor: null,
+	appName: "canvascycle-mx",
 
 
 	settings: {
@@ -86,6 +87,7 @@ var CanvasCycle = {
 		this.bindKeyboardNavigation();
 		this.bindUploadControls();
 		this.bindMenus();
+		this.applyAppName();
 		this.bindCanvasTools();
 		this.bindPaletteDragging();
 		this.positionPalettes();
@@ -278,24 +280,40 @@ var CanvasCycle = {
 	},
 
 	bindMenus: function () {
+		var appTrigger = $("btn_app_menu");
+		var appMenu = $("app_menu");
 		var fileTrigger = $("btn_file_menu");
 		var fileMenu = $("file_menu");
 		var editTrigger = $("btn_edit_menu");
 		var editMenu = $("edit_menu");
+		var helpTrigger = $("btn_help_menu");
+		var helpMenu = $("help_menu");
+		var aboutItem = $("menu_about_app");
+		var helpItem = $("menu_help_app");
 		var uploadPNGItem = $("menu_upload_png");
 		var uploadJSONItem = $("menu_upload_json");
 		var exportJSONItem = $("menu_export_json");
 		var exportEmbedItem = $("menu_export_embed");
 		var undoItem = $("menu_undo");
 
+		appTrigger.addEventListener("click", function (e) {
+			e.stopPropagation();
+			CanvasCycle.toggleMenu(appMenu, appTrigger, [fileMenu, editMenu, helpMenu], [fileTrigger, editTrigger, helpTrigger]);
+		});
+
 		fileTrigger.addEventListener("click", function (e) {
 			e.stopPropagation();
-			CanvasCycle.toggleMenu(fileMenu, fileTrigger, [editMenu], [editTrigger]);
+			CanvasCycle.toggleMenu(fileMenu, fileTrigger, [appMenu, editMenu, helpMenu], [appTrigger, editTrigger, helpTrigger]);
 		});
 
 		editTrigger.addEventListener("click", function (e) {
 			e.stopPropagation();
-			CanvasCycle.toggleMenu(editMenu, editTrigger, [fileMenu], [fileTrigger]);
+			CanvasCycle.toggleMenu(editMenu, editTrigger, [appMenu, fileMenu, helpMenu], [appTrigger, fileTrigger, helpTrigger]);
+		});
+
+		helpTrigger.addEventListener("click", function (e) {
+			e.stopPropagation();
+			CanvasCycle.toggleMenu(helpMenu, helpTrigger, [appMenu, fileMenu, editMenu], [appTrigger, fileTrigger, editTrigger]);
 		});
 
 		uploadPNGItem.addEventListener("click", function () {
@@ -312,16 +330,30 @@ var CanvasCycle = {
 			CanvasCycle.downloadCurrentEmbed();
 			CanvasCycle.closeMenus();
 		});
+		aboutItem.addEventListener("click", function () {
+			CanvasCycle.showAboutModal();
+			CanvasCycle.closeMenus();
+		});
+		helpItem.addEventListener("click", function () {
+			CanvasCycle.showHelpModal();
+			CanvasCycle.closeMenus();
+		});
 
 		undoItem.addEventListener("click", function () {
 			CanvasCycle.performUndo();
 			CanvasCycle.closeMenus();
 		});
 
+		appMenu.addEventListener("click", function (e) {
+			e.stopPropagation();
+		});
 		fileMenu.addEventListener("click", function (e) {
 			e.stopPropagation();
 		});
 		editMenu.addEventListener("click", function (e) {
+			e.stopPropagation();
+		});
+		helpMenu.addEventListener("click", function (e) {
 			e.stopPropagation();
 		});
 
@@ -329,6 +361,19 @@ var CanvasCycle = {
 			CanvasCycle.closeMenus();
 			CanvasCycle.closeColorChipPopup();
 			CanvasCycle.closePaletteSortPopup();
+		});
+
+		["about_modal", "help_modal"].forEach(function (id) {
+			var modal = $(id);
+			if (!modal) return;
+			modal.addEventListener("click", function (e) {
+				if (e.target === modal) modal.setClass("hidden", true);
+			});
+		});
+
+		document.addEventListener("keydown", function (e) {
+			if (e.key !== "Escape") return;
+			CanvasCycle.closeInfoModals();
 		});
 
 		this.updateUndoMenuItem();
@@ -347,11 +392,48 @@ var CanvasCycle = {
 	},
 
 	closeMenus: function () {
+		$("app_menu").setClass("hidden", true);
+		$("btn_app_menu").setClass("open", false);
 		$("file_menu").setClass("hidden", true);
 		$("btn_file_menu").setClass("open", false);
 		$("menu_open_sample").setClass("submenu-open", false);
 		$("edit_menu").setClass("hidden", true);
 		$("btn_edit_menu").setClass("open", false);
+		$("help_menu").setClass("hidden", true);
+		$("btn_help_menu").setClass("open", false);
+	},
+
+	applyAppName: function () {
+		document.title = this.appName;
+		$("btn_app_menu").textContent = this.appName;
+		$("menu_about_app").textContent = "About " + this.appName + "...";
+		$("menu_help_app").textContent = this.appName + " Help...";
+		var aboutHeader = document.querySelector("#about_modal h2");
+		var helpHeader = document.querySelector("#help_modal h2");
+		if (aboutHeader) aboutHeader.textContent = "About " + this.appName;
+		if (helpHeader) helpHeader.textContent = this.appName + " Help";
+	},
+
+
+	closeInfoModals: function () {
+		this.closeAboutModal();
+		this.closeHelpModal();
+	},
+
+	showAboutModal: function () {
+		$("about_modal").setClass("hidden", false);
+	},
+
+	closeAboutModal: function () {
+		$("about_modal").setClass("hidden", true);
+	},
+
+	showHelpModal: function () {
+		$("help_modal").setClass("hidden", false);
+	},
+
+	closeHelpModal: function () {
+		$("help_modal").setClass("hidden", true);
 	},
 
 
@@ -756,6 +838,7 @@ var CanvasCycle = {
 				) {
 					e.preventDefault();
 				}
+				CanvasCycle.closeInfoModals();
 				CanvasCycle.disableToolsAndDragging();
 				return;
 			}
@@ -1631,9 +1714,18 @@ var CanvasCycle = {
 		this.saveSettings();
 	},
 	setBlendShift: function (enabled) {
-		$("chk_blend").checked = !!enabled;
-		this.settings.blendShiftEnabled = enabled;
+		var value = !!enabled;
+		var btn = $("btn_blend_shift");
+		if (btn) {
+			btn.setClass("selected", value);
+			btn.setAttribute("aria-pressed", value ? "true" : "false");
+		}
+		this.settings.blendShiftEnabled = value;
 		this.saveSettings();
+	},
+
+	toggleBlendShift: function () {
+		this.setBlendShift(!this.settings.blendShiftEnabled);
 	},
 	setGridOverlay: function (enabled) {
 		var value = !!enabled;

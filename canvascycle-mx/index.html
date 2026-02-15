@@ -19,7 +19,15 @@
 	</head>
 	<body class="large_palette">
 		<div id="top_menubar">
-			<div id="file_menu_wrap">
+			<div id="app_menu_wrap" class="menu-wrap">
+				<button id="btn_app_menu" class="menu-trigger" type="button">
+					canvascycle-mx
+				</button>
+				<div id="app_menu" class="popup-menu hidden">
+					<div id="menu_about_app" class="menu-item">About canvascycle-mx...</div>
+				</div>
+			</div>
+			<div id="file_menu_wrap" class="menu-wrap">
 				<button id="btn_file_menu" class="menu-trigger" type="button">
 					File
 				</button>
@@ -48,12 +56,20 @@
 					<div id="menu_export_embed" class="menu-item">Export Embed</div>
 				</div>
 			</div>
-			<div id="edit_menu_wrap">
+			<div id="edit_menu_wrap" class="menu-wrap">
 				<button id="btn_edit_menu" class="menu-trigger" type="button">
 					Edit
 				</button>
 				<div id="edit_menu" class="popup-menu hidden">
 					<div id="menu_undo" class="menu-item menu-item-disabled">Undo</div>
+				</div>
+			</div>
+			<div id="help_menu_wrap" class="menu-wrap">
+				<button id="btn_help_menu" class="menu-trigger" type="button">
+					Help
+				</button>
+				<div id="help_menu" class="popup-menu hidden">
+					<div id="menu_help_app" class="menu-item">canvascycle-mx Help...</div>
 				</div>
 			</div>
 		</div>
@@ -144,14 +160,16 @@
 							4
 						</button>
 					</div>
-					<label class="blend-toggle" title="Blend shift"
-						><span class="blend-icon"></span
-						><input
-							id="chk_blend"
-							type="checkbox"
-							checked
-							onChange="CC.setBlendShift(this.checked)"
-					/></label>
+					<button
+						id="btn_blend_shift"
+						class="button icon-btn blend-btn-icon selected"
+						title="Blend shift"
+						aria-label="Blend shift"
+						aria-pressed="true"
+						onClick="CC.toggleBlendShift()"
+					>
+						◐
+					</button>
 					<button
 						id="btn_palette_sort"
 						class="button icon-btn"
@@ -291,6 +309,74 @@
 					>
 						Open Selection
 					</button>
+				</div>
+			</div>
+		</div>
+
+		<div id="about_modal" class="modal hidden">
+			<div class="modal-card modal-card-scrollable">
+				<div class="modal-header">
+					<h2>About canvascycle-mx</h2>
+					<button class="button" type="button" onClick="CC.closeAboutModal()">Close</button>
+				</div>
+				<div class="modal-scroll-area">
+					<p>This area is reserved for About content. You can replace this with your own HTML.</p>
+					<p>Lorem ipsum placeholder text to demonstrate scroll behavior.</p>
+					<p>Lorem ipsum placeholder text to demonstrate scroll behavior.</p>
+					<p>Lorem ipsum placeholder text to demonstrate scroll behavior.</p>
+					<p>Lorem ipsum placeholder text to demonstrate scroll behavior.</p>
+					<p>Lorem ipsum placeholder text to demonstrate scroll behavior.</p>
+				</div>
+			</div>
+		</div>
+
+		<div id="help_modal" class="modal hidden">
+			<div class="modal-card modal-card-scrollable">
+				<div class="modal-header">
+					<h2>canvascycle-mx Help</h2>
+					<button class="button" type="button" onClick="CC.closeHelpModal()">Close</button>
+				</div>
+				<div class="modal-scroll-area help-content">
+					<h3>Image Tool Palette</h3>
+					<div class="help-tool-list">
+						<div class="help-tool-row"><span class="help-tool-icon">🔍</span><div><strong>Zoom</strong><p>Use Zoom to inspect details and focus your edits at different magnifications.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">✎</span><div><strong>Pencil</strong><p>Use Pencil to paint with the active palette color directly onto the image.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">🧪</span><div><strong>Eyedropper</strong><p>Use Eyedropper to sample a color from the image or palette and set it as active.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">✋</span><div><strong>Move</strong><p>Use Move to pan around the canvas while zoomed in.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">▦</span><div><strong>Toggle Pixel Grid</strong><p>Show or hide the pixel grid overlay for precision editing.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">↻</span><div><strong>Reset View</strong><p>Reset zoom and pan to the default framing.</p></div></div>
+					</div>
+
+					<h3>Color Data</h3>
+					<p>The color data palette shows all indexed colors. You can inspect, select, and reorganize palette entries to control how cycling affects the image.</p>
+
+					<h3>Cycle Palette</h3>
+					<div class="help-tool-list">
+						<div class="help-tool-row"><span class="help-tool-icon"><span class="help-mini-btn selected">½</span></span><div><strong>Speed</strong><p>Set animation speed using the grouped speed buttons (¼, ½, 1, 2, 4).</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">◐</span><div><strong>Blend Shift</strong><p>Toggle blended transitions between cycle steps.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">⇅</span><div><strong>Sort Palette</strong><p>Reorder colors using common sorting modes.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">↺</span><div><strong>Reset Cycle Animation</strong><p>Restart cycle playback timing from the beginning.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">⏸</span><div><strong>Pause / Resume</strong><p>Pause or resume playback.</p></div></div>
+					</div>
+
+					<h3>Cycle Data</h3>
+					<div class="help-tool-list">
+						<div class="help-tool-row"><span class="help-tool-icon">＋</span><div><strong>Add Cycle</strong><p>Add a new cycle row for defining animated color ranges.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">↕</span><div><strong>Direction</strong><p>Set cycle direction and mode for each row.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">¼½124</span><div><strong>Speed Controls</strong><p>Use the speed controls together as one tool to change playback tempo globally.</p></div></div>
+					</div>
+
+					<h3>Import</h3>
+					<p><strong>Import PNG:</strong> Import an indexed PNG and convert it into canvascycle JSON data (pixels, palette, and cycle-ready structure).</p>
+					<p><strong>Import JSON:</strong> Load a previously exported canvascycle JSON file to continue editing.</p>
+
+					<h3>Export</h3>
+					<p><strong>Export JSON:</strong> Save the current image, palette, and cycle data as a standard JSON file.</p>
+					<p><strong>Export Embeddable JSON:</strong> Save a compact/embeddable variant for web playback integrations.</p>
+
+					<h3>Player</h3>
+					<p><strong>Standalone player script:</strong> Use the player script to load and play a JSON data file without the editor UI. <a href="src/player-core.js" download>Download standalone player script</a>.</p>
+					<p><strong>Standalone embeddable JSON:</strong> Pair an embeddable JSON file with a compatible player host to publish cycle animations with minimal setup.</p>
 				</div>
 			</div>
 		</div>
