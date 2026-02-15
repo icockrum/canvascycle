@@ -201,7 +201,7 @@ div#d_debug .fps {
 	clear: both;
 }
 #mycanvas {
-	border: 1px solid var(--line);
+	/* border: 1px solid var(--line); */
 	background: #000;
 	image-rendering: pixelated;
 }
@@ -209,7 +209,7 @@ div#d_debug .fps {
 	position: relative;
 }
 #image_status_bar {
-	margin-top: 4px;
+	margin-top: -2px;
 	height: var(--statusbarheight);
 	width: var(--canvaswidth);
 	box-sizing: border-box;
@@ -217,8 +217,8 @@ div#d_debug .fps {
 	align-items: center;
 	justify-content: space-between;
 	padding: 0 8px;
-	border: 1px solid var(--line);
-	border-top: 0;
+	/* border: 1px solid var(--line); */
+	/* border-top: 0; */
 	background: var(--panel);
 	color: var(--muted);
 	font-size: 11px;
@@ -255,7 +255,7 @@ div#d_debug .fps {
 }
 #d_cycles_row {
 	background: var(--panel);
-	border: 1px solid var(--line);
+	/* border: 1px solid var(--line); */
 	border-radius: 2px;
 	padding: 10px 10px 6px 10px;
 	/* margin-top: 10px; */
@@ -267,6 +267,7 @@ div#d_debug .fps {
 		100dvh - 10px - var(--container-pad) - var(--menuheight) -
 			(var(--cycles-pad) * 2) - var(--canvasheight) - var(--statusbarheight)
 	);
+	margin-top: 5px;
 }
 .label {
 	font-weight: 700;
