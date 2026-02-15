@@ -55,6 +55,10 @@ var CanvasCycle = {
 	paletteColorInputEl: null,
 	lastPaletteClickIdx: -1,
 	lastPaletteClickAt: 0,
+	undoBuffer: [],
+	maxUndoCount: 100,
+	paletteEditOriginalColor: null,
+
 
 	settings: {
 		showOptions: true,
@@ -191,6 +195,7 @@ var CanvasCycle = {
 		this.paletteColorInputEl.style.display = "none";
 		this.paletteColorInputEl.style.opacity = "0";
 		this.paletteColorInputEl.style.pointerEvents = "none";
+		this.paletteEditOriginalColor = null;
 	},
 
 	openPaletteColorPicker: function (idx, anchorEl) {
@@ -198,6 +203,7 @@ var CanvasCycle = {
 		if (idx < 0 || idx >= this.bmp.palette.baseColors.length) return;
 		var c = this.bmp.palette.baseColors[idx];
 		this.paletteEditColorIdx = idx;
+		this.paletteEditOriginalColor = [c.red, c.green, c.blue];
 		this.selectColor(idx);
 		this.paletteColorInputEl.value = this.rgbToHex(c.red, c.green, c.blue);
 		if (anchorEl && anchorEl.getBoundingClientRect) {
@@ -225,6 +231,20 @@ var CanvasCycle = {
 			color.blue === rgb[2]
 		)
 			return;
+
+		this.pushUndoAction({
+			type: "palette-color",
+			label: "Undo palette color",
+			olddata: {
+				index: idx,
+				color: this.paletteEditOriginalColor
+					? this.paletteEditOriginalColor.slice(0)
+					: [color.red, color.green, color.blue],
+			},
+			newdata: { index: idx, color: [rgb[0], rgb[1], rgb[2]] },
+			mergeKey: "palette-color-" + idx,
+		});
+
 		color.red = rgb[0];
 		color.green = rgb[1];
 		color.blue = rgb[2];
@@ -258,42 +278,82 @@ var CanvasCycle = {
 	},
 
 	bindMenus: function () {
-		var trigger = $("btn_file_menu");
-		var menu = $("file_menu");
+		var fileTrigger = $("btn_file_menu");
+		var fileMenu = $("file_menu");
+		var editTrigger = $("btn_edit_menu");
+		var editMenu = $("edit_menu");
 		var uploadPNGItem = $("menu_upload_png");
 		var uploadJSONItem = $("menu_upload_json");
 		var exportJSONItem = $("menu_export_json");
 		var exportEmbedItem = $("menu_export_embed");
-		trigger.addEventListener("click", function (e) {
+		var undoItem = $("menu_undo");
+
+		fileTrigger.addEventListener("click", function (e) {
 			e.stopPropagation();
-			var isHidden = /(^|\s)hidden(\s|$)/.test(menu.className);
-			menu.setClass("hidden", !isHidden);
-			trigger.setClass("open", isHidden);
+			CanvasCycle.toggleMenu(fileMenu, fileTrigger, [editMenu], [editTrigger]);
 		});
+
+		editTrigger.addEventListener("click", function (e) {
+			e.stopPropagation();
+			CanvasCycle.toggleMenu(editMenu, editTrigger, [fileMenu], [fileTrigger]);
+		});
+
 		uploadPNGItem.addEventListener("click", function () {
-			CanvasCycle.closeFileMenu();
+			CanvasCycle.closeMenus();
 		});
 		uploadJSONItem.addEventListener("click", function () {
-			CanvasCycle.closeFileMenu();
+			CanvasCycle.closeMenus();
 		});
 		exportJSONItem.addEventListener("click", function () {
 			CanvasCycle.downloadCurrentJSON();
-			CanvasCycle.closeFileMenu();
+			CanvasCycle.closeMenus();
 		});
 		exportEmbedItem.addEventListener("click", function () {
 			CanvasCycle.downloadCurrentEmbed();
-			CanvasCycle.closeFileMenu();
+			CanvasCycle.closeMenus();
 		});
-		menu.addEventListener("click", function (e) {
+
+		undoItem.addEventListener("click", function () {
+			CanvasCycle.performUndo();
+			CanvasCycle.closeMenus();
+		});
+
+		fileMenu.addEventListener("click", function (e) {
 			e.stopPropagation();
 		});
+		editMenu.addEventListener("click", function (e) {
+			e.stopPropagation();
+		});
+
 		document.addEventListener("click", function () {
-			menu.setClass("hidden", true);
-			trigger.setClass("open", false);
+			CanvasCycle.closeMenus();
 			CanvasCycle.closeColorChipPopup();
 			CanvasCycle.closePaletteSortPopup();
 		});
+
+		this.updateUndoMenuItem();
 	},
+
+	toggleMenu: function (menu, trigger, otherMenus, otherTriggers) {
+		var isHidden = /(^|\s)hidden(\s|$)/.test(menu.className);
+		menu.setClass("hidden", !isHidden);
+		trigger.setClass("open", isHidden);
+		(otherMenus || []).forEach(function (other) {
+			if (other) other.setClass("hidden", true);
+		});
+		(otherTriggers || []).forEach(function (other) {
+			if (other) other.setClass("open", false);
+		});
+	},
+
+	closeMenus: function () {
+		$("file_menu").setClass("hidden", true);
+		$("btn_file_menu").setClass("open", false);
+		$("menu_open_sample").setClass("submenu-open", false);
+		$("edit_menu").setClass("hidden", true);
+		$("btn_edit_menu").setClass("open", false);
+	},
+
 
 	bindCanvasTools: function () {
 		var canvas = $("mycanvas");
@@ -602,10 +662,92 @@ var CanvasCycle = {
 		this.colorPopupOpen = false;
 	},
 
+	clearUndoBuffer: function () {
+		this.undoBuffer = [];
+		this.updateUndoMenuItem();
+	},
+
+	pushUndoAction: function (action) {
+		if (!action) return;
+		if (!action.timestamp) action.timestamp = Date.now();
+		action.type = action.type || "action";
+		action.label = action.label || "Undo";
+
+		if (action.mergeKey && this.undoBuffer.length) {
+			var top = this.undoBuffer[this.undoBuffer.length - 1];
+			if (top && top.mergeKey === action.mergeKey) {
+				top.newdata = action.newdata;
+				top.timestamp = action.timestamp;
+				this.updateUndoMenuItem();
+				return;
+			}
+		}
+
+		this.undoBuffer.push(action);
+		if (this.undoBuffer.length > this.maxUndoCount) this.undoBuffer.shift();
+		this.updateUndoMenuItem();
+	},
+
+	performUndo: function () {
+		if (!this.bmp || !this.undoBuffer.length) return;
+		var action = this.undoBuffer.pop();
+		if (!action) return;
+
+		if (action.type === "pencil") {
+			var oldPixel = action.olddata || {};
+			if (typeof oldPixel.pixelIdx === "number")
+				this.bmp.pixels[oldPixel.pixelIdx] = oldPixel.colorIndex;
+			this.bmp.optimize();
+			this.renderDirty = true;
+			this.markImageEdited();
+			this.syncUploadedImageData();
+		} else if (action.type === "palette-color") {
+			var oldPalette = action.olddata || {};
+			var idx = oldPalette.index;
+			if (
+				typeof idx === "number" &&
+				idx >= 0 &&
+				idx < this.bmp.palette.baseColors.length
+			) {
+				var color = this.bmp.palette.baseColors[idx];
+				if (oldPalette.color && oldPalette.color.length === 3) {
+					color.red = oldPalette.color[0];
+					color.green = oldPalette.color[1];
+					color.blue = oldPalette.color[2];
+				}
+				this.bmp.optimize();
+				this.renderDirty = true;
+				this.markImageEdited();
+				this.syncUploadedImageData();
+				this.updateColorChip();
+			}
+		}
+
+		this.updateUndoMenuItem();
+	},
+
+	updateUndoMenuItem: function () {
+		var undoItem = $("menu_undo");
+		if (!undoItem) return;
+		if (!this.undoBuffer.length) {
+			undoItem.innerHTML = "Undo";
+			undoItem.setClass("menu-item-disabled", true);
+			return;
+		}
+		var top = this.undoBuffer[this.undoBuffer.length - 1];
+		undoItem.innerHTML = top.label || "Undo";
+		undoItem.setClass("menu-item-disabled", false);
+	},
+
 	bindKeyboardNavigation: function () {
 		document.addEventListener("keydown", function (e) {
 			CanvasCycle.trackModifierKeyState(e, true);
 			CanvasCycle.updateTemporaryToolShortcut(e);
+			if ((e.metaKey || e.ctrlKey) && !e.shiftKey && (e.key === "z" || e.key === "Z")) {
+				e.preventDefault();
+				CanvasCycle.performUndo();
+				return;
+			}
 			if (e.key === "Escape") {
 				if (
 					CanvasCycle.activeTool ||
@@ -775,9 +917,7 @@ var CanvasCycle = {
 	},
 
 	closeFileMenu: function () {
-		$("file_menu").setClass("hidden", true);
-		$("btn_file_menu").setClass("open", false);
-		$("menu_open_sample").setClass("submenu-open", false);
+		this.closeMenus();
 	},
 	applyStoredPrefs: function () {
 		var prefs = this.cookie.get("settings");
@@ -892,6 +1032,7 @@ var CanvasCycle = {
 		$("btn_pause").innerHTML = "⏸";
 		$("btn_pause").title = "Pause";
 		this.activeFilename = img.filename || "image.json";
+		this.clearUndoBuffer();
 		this.resetView();
 		this.renderCyclesEditor();
 		this.updateSceneSelection();
@@ -1593,7 +1734,16 @@ var CanvasCycle = {
 		var idx = this.findOrCreateColorIndex(this.currentPaintColor);
 		if (idx < 0) return;
 		var pixelIdx = y * this.bmp.width + x;
-		if (this.bmp.pixels[pixelIdx] === idx) return;
+		var oldIdx = this.bmp.pixels[pixelIdx];
+		if (oldIdx === idx) return;
+
+		this.pushUndoAction({
+			type: "pencil",
+			label: "Undo pencil tool",
+			olddata: { x: x, y: y, pixelIdx: pixelIdx, colorIndex: oldIdx },
+			newdata: { x: x, y: y, pixelIdx: pixelIdx, colorIndex: idx },
+		});
+
 		this.bmp.pixels[pixelIdx] = idx;
 		this.bmp.optimize();
 		this.markImageEdited();

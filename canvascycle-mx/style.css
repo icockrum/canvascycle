@@ -68,6 +68,14 @@ body {
 	position: absolute;
 	height: 40px;
 }
+#edit_menu_wrap {
+	left: 62px;
+	top: 0;
+	padding: 0;
+	margin: 0;
+	position: absolute;
+	height: 40px;
+}
 .popup-menu {
 	position: absolute;
 	top: 40px;
@@ -100,6 +108,14 @@ body {
 }
 .menu-item:hover {
 	background: var(--menuhover);
+}
+.menu-item.menu-item-disabled {
+	color: var(--muted);
+	cursor: default;
+	pointer-events: none;
+}
+.menu-item.menu-item-disabled:hover {
+	background: transparent;
 }
 .menu-item input {
 	display: none;
