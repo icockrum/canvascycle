@@ -832,7 +832,9 @@ var CanvasCycle = {
 	updatePaletteSelection: function () {
 		for (var idx = 0; idx < 256; idx++) {
 			var chip = $("pal_" + idx);
-			if (chip) chip.setClass("selected", idx === this.selectedColor);
+			if (!chip) continue;
+			chip.setClass("selected", idx === this.selectedColor);
+			chip.setClass("hover-highlight", idx === this.highlightColor);
 		}
 	},
 
