@@ -31,23 +31,23 @@
 						</div>
 					</div>
 					<hr />
-					<label class="menu-item upload-item"
+					<label id="menu_upload_png" class="menu-item upload-item"
 						>Upload PNG<input
 							id="fe_upload_png"
 							type="file"
 							accept=".png,image/png"
 					/></label>
-					<label class="menu-item upload-item"
+					<label id="menu_upload_json" class="menu-item upload-item"
 						>Upload JSON<input
 							id="fe_upload_json"
 							type="file"
 							accept=".json,application/json"
 					/></label>
 					<hr />
-					<div class="menu-item" onClick="CC.downloadCurrentJSON()">
+					<div id="menu_export_json" class="menu-item">
 						Export JSON
 					</div>
-					<div class="menu-item" onClick="CC.downloadCurrentEmbed()">
+					<div id="menu_export_embed" class="menu-item">
 						Export Embed
 					</div>
 				</div>
