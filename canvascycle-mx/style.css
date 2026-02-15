@@ -7,6 +7,11 @@
 	--muted: #a9acb5;
 	--accent: #4d8dff;
 	--line: #444752;
+	--container-pad: 18px;
+	--menuheight: 40px;
+	--canvasheight: 480px;
+	--canvaswidth: 640px;
+	--cycles-pad: 10px;
 }
 @media (prefers-color-scheme: light) {
 	:root {
@@ -129,9 +134,14 @@ body {
 }
 #container {
 	display: flex;
-	gap: 18px;
-	padding: 18px;
+	gap: var(--container-pad);
+	padding: var(--container-pad);
 	align-items: flex-start;
+}
+#image-column {
+	height: calc(100dvh - var(--menuheight) - var(--container-pad));
+	display: flex;
+	flex-direction: column;
 }
 #d_options {
 	width: 352px;
@@ -148,12 +158,27 @@ div.palette_color {
 	cursor: move;
 }
 div.palette_color.selected {
-	border-color: var(--accent);
+	/* border-color: var(--accent); */
+	border-color: white;
 }
 div.palette_color:hover,
 div.palette_color.hover-highlight {
 	border-color: #fff;
 	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+div#d_debug {
+	display: flex;
+	justify-content: space-between;
+	flex-direction: row-reverse;
+}
+div#d_debug .color {
+}
+div#d_debug .rgb {
+}
+div#d_debug .hex {
+}
+div#d_debug .fps {
+	/* float: right; */
 }
 .clear {
 	clear: both;
@@ -180,8 +205,15 @@ div.palette_color.hover-highlight {
 	border: 1px solid var(--line);
 	border-radius: 2px;
 	padding: 10px 10px 6px 10px;
-	margin-top: 10px;
+	/* margin-top: 10px; */
 	width: calc(640px - 20px);
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	max-height: calc(
+		100dvh - 10px - var(--container-pad) - var(--menuheight) -
+			(var(--cycles-pad) * 2) - var(--canvasheight)
+	);
 }
 .label {
 	font-weight: 700;
@@ -203,9 +235,10 @@ div.palette_color.hover-highlight {
 	color: #fff;
 }
 #cycles_editor {
-	max-height: 240px;
+	/* max-height: 240px; */
 	overflow: auto;
-	border-bottom: 1px solid var(--line);
+	/* border-bottom: 1px solid var(--line); */
+	flex: 1;
 }
 .cycle_header,
 .cycle_row {
@@ -220,8 +253,9 @@ div.palette_color.hover-highlight {
 	text-transform: uppercase;
 	font-size: 10px;
 	font-weight: bold;
-	margin-bottom: 4px;
+	margin-bottom: 10px;
 	color: var(--accent);
+	position: relative;
 }
 .cycle_row input,
 .cycle_row select {
@@ -231,16 +265,22 @@ div.palette_color.hover-highlight {
 	border: 1px solid var(--line);
 	color: var(--text);
 }
-.cycle_remove {
+.cycle_remove,
+#add_cycle {
 	width: 20px;
 	min-width: 20px;
 	padding: 1px 0;
 	justify-self: start;
 	border-radius: 0;
 }
-.cycle_remove:hover {
+.cycle_remove:hover,
+#add_cycle:hover {
 	background: var(--text);
 	color: var(--panel-2);
+}
+#add_cycle {
+	font-size: 12px;
+	padding: 1px 0px 2px 0px;
 }
 .tool-palette {
 	position: fixed;

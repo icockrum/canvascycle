@@ -361,7 +361,8 @@ var CanvasCycle = {
 		if (!this.bmp) return;
 		var base = this.bmp.palette.baseColors;
 		var indexed = [];
-		for (var i = 0; i < base.length; i++) indexed.push({ idx: i, color: base[i] });
+		for (var i = 0; i < base.length; i++)
+			indexed.push({ idx: i, color: base[i] });
 		if (mode === "reverse") indexed.reverse();
 		else {
 			indexed.sort(function (a, b) {
@@ -848,7 +849,7 @@ var CanvasCycle = {
 				"rgb(" + clr.red + "," + clr.green + "," + clr.blue + ")";
 		}
 		this.updatePaletteSelection();
-		var debug = "FPS: " + FrameCount.current;
+		var debug = `<span class="fps">FPS: ${FrameCount.current}</span>`;
 		if (this.highlightColor !== -1) {
 			var c = this.bmp.palette.baseColors[this.highlightColor] || {
 				red: 0,
@@ -859,17 +860,11 @@ var CanvasCycle = {
 				.toString(16)
 				.slice(1)
 				.toUpperCase();
-			debug +=
-				" - Color #" +
-				this.highlightColor +
-				" rgb(" +
-				c.red +
-				"," +
-				c.green +
-				"," +
-				c.blue +
-				") #" +
-				hex;
+			debug += `
+        <span class="hex">#${hex}</span>
+        <span class="rgb">rgb(${c.red}, ${c.green}, ${c.blue})</span>
+        <span class="color">Color #${this.highlightColor}</span>
+      `;
 		}
 		$("d_debug").innerHTML = debug;
 
@@ -924,7 +919,7 @@ var CanvasCycle = {
 		var header = $("cycles_header");
 		container.innerHTML = "";
 		if (!this.bmp) return;
-		header.style.display = this.bmp.palette.cycles.length ? "grid" : "none";
+		// header.style.display = this.bmp.palette.cycles.length ? "grid" : "none";
 		for (var idx = 0; idx < this.bmp.palette.cycles.length; idx++) {
 			var cyc = this.bmp.palette.cycles[idx];
 			var row = document.createElement("div");
@@ -1093,8 +1088,14 @@ var CanvasCycle = {
 
 	remapCycleRange: function (cycle, fromIdx, toIdx, maxPaletteIndex) {
 		if (!cycle) return;
-		var low = Math.max(0, Math.min(maxPaletteIndex, Math.min(cycle.low, cycle.high)));
-		var high = Math.max(0, Math.min(maxPaletteIndex, Math.max(cycle.low, cycle.high)));
+		var low = Math.max(
+			0,
+			Math.min(maxPaletteIndex, Math.min(cycle.low, cycle.high)),
+		);
+		var high = Math.max(
+			0,
+			Math.min(maxPaletteIndex, Math.max(cycle.low, cycle.high)),
+		);
 		if (high < low) {
 			cycle.low = low;
 			cycle.high = low;
@@ -1107,7 +1108,9 @@ var CanvasCycle = {
 		var remapped = [];
 		for (var idx = low; idx <= high; idx++) {
 			if (idx === fromIdx && !inRange(toIdx)) continue;
-			remapped.push(CanvasCycle.remapPaletteIndexAfterMove(idx, fromIdx, toIdx));
+			remapped.push(
+				CanvasCycle.remapPaletteIndexAfterMove(idx, fromIdx, toIdx),
+			);
 		}
 
 		if (!inRange(fromIdx) && inRange(toIdx)) {
@@ -1120,8 +1123,14 @@ var CanvasCycle = {
 			return;
 		}
 
-		cycle.low = Math.max(0, Math.min(maxPaletteIndex, Math.min.apply(Math, remapped)));
-		cycle.high = Math.max(0, Math.min(maxPaletteIndex, Math.max.apply(Math, remapped)));
+		cycle.low = Math.max(
+			0,
+			Math.min(maxPaletteIndex, Math.min.apply(Math, remapped)),
+		);
+		cycle.high = Math.max(
+			0,
+			Math.min(maxPaletteIndex, Math.max.apply(Math, remapped)),
+		);
 	},
 
 	remapPaletteIndexAfterMove: function (index, fromIdx, toIdx) {
@@ -1391,7 +1400,8 @@ var CanvasCycle = {
 		this.updateCanvasCursor(e.altKey || this.forceZoomOutCursor);
 		var pixel = this.canvasToImagePixel(e);
 		if (this.activeTool === "eyedropper" && pixel) {
-			this.eyedropperHoverColor = this.bmp.pixels[pixel.y * this.bmp.width + pixel.x];
+			this.eyedropperHoverColor =
+				this.bmp.pixels[pixel.y * this.bmp.width + pixel.x];
 		} else if (this.eyedropperHoverColor !== -1) {
 			this.eyedropperHoverColor = -1;
 		}
