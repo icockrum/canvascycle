@@ -116,6 +116,9 @@ function reorderPalette(fromIndex, toIndex) {
   colors.splice(fromIndex, 1);
   colors.splice(toIndex, 0, moved);
 
+  const maxPaletteIndex = colors.length - 1;
+  activeData.cycles.forEach((cycle) => adjustCycleRangeForMove(cycle, fromIndex, toIndex, maxPaletteIndex));
+
   const remap = new Uint8Array(colors.length);
   const oldIndices = [...Array(colors.length).keys()];
   const oldMoved = oldIndices[fromIndex];
@@ -131,6 +134,50 @@ function reorderPalette(fromIndex, toIndex) {
 
   player.loadFromData(activeData);
   renderPalette();
+  renderCyclesEditor();
+}
+
+function adjustCycleRangeForMove(cycle, fromIndex, toIndex, maxPaletteIndex) {
+  if (!cycle) return;
+
+  const low = clamp(Math.min(cycle.low, cycle.high), 0, maxPaletteIndex);
+  const high = clamp(Math.max(cycle.low, cycle.high), 0, maxPaletteIndex);
+  const inRange = (idx) => idx >= low && idx <= high;
+
+  const remapped = [];
+  for (let idx = low; idx <= high; idx++) {
+    if (idx === fromIndex) continue;
+    remapped.push(remapIndexAfterMove(idx, fromIndex, toIndex));
+  }
+
+  if (inRange(toIndex)) {
+    remapped.push(toIndex);
+  }
+
+  if (!remapped.length) {
+    cycle.low = low;
+    cycle.high = low;
+    return;
+  }
+
+  cycle.low = clamp(Math.min(...remapped), 0, maxPaletteIndex);
+  cycle.high = clamp(Math.max(...remapped), 0, maxPaletteIndex);
+}
+
+function remapIndexAfterMove(index, fromIndex, toIndex) {
+  if (index === fromIndex) return toIndex;
+
+  if (fromIndex < toIndex) {
+    if (index > fromIndex && index <= toIndex) return index - 1;
+    return index;
+  }
+
+  if (index >= toIndex && index < fromIndex) return index + 1;
+  return index;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function renderCyclesEditor() {
