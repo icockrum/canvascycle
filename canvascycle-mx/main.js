@@ -1082,6 +1082,9 @@ var CanvasCycle = {
 		container.onfocusin = function (e) {
 			CanvasCycle.syncSelectedColorToCycleField(e.target);
 		};
+		container.onfocusout = function (e) {
+			CanvasCycle.clearSelectedColorFromCycleFieldBlur(e);
+		};
 		container.addEventListener("focus", function (e) {
 			CanvasCycle.syncSelectedColorToCycleField(e.target);
 		}, true);
@@ -1133,6 +1136,21 @@ var CanvasCycle = {
 		this.selectColor(idx);
 		this.keyboardHighlightColor = idx;
 		this.updateHighlightColor();
+	},
+
+	clearSelectedColorFromCycleFieldBlur: function (evt) {
+		if (!evt || !this.bmp) return;
+		var field = evt.target;
+		if (!field || !field.getAttribute) return;
+		var key = field.getAttribute("data-key");
+		if (key !== "low" && key !== "high") return;
+		var next = evt.relatedTarget;
+		if (next && next.getAttribute) {
+			var nextKey = next.getAttribute("data-key");
+			if (nextKey === "low" || nextKey === "high") return;
+		}
+		this.selectedColor = -1;
+		this.updatePaletteSelection();
 	},
 
 	addCycle: function () {
