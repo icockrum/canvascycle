@@ -1101,22 +1101,27 @@ var CanvasCycle = {
 			return;
 		}
 
-		var minMapped = null;
-		var maxMapped = null;
+		var inRange = function (idx) {
+			return idx >= low && idx <= high;
+		};
+		var remapped = [];
 		for (var idx = low; idx <= high; idx++) {
-			var mapped = this.remapPaletteIndexAfterMove(idx, fromIdx, toIdx);
-			if (minMapped === null || mapped < minMapped) minMapped = mapped;
-			if (maxMapped === null || mapped > maxMapped) maxMapped = mapped;
+			if (idx === fromIdx && !inRange(toIdx)) continue;
+			remapped.push(CanvasCycle.remapPaletteIndexAfterMove(idx, fromIdx, toIdx));
 		}
 
-		if (minMapped === null || maxMapped === null) {
+		if (!inRange(fromIdx) && inRange(toIdx)) {
+			remapped.push(toIdx);
+		}
+
+		if (!remapped.length) {
 			cycle.low = low;
 			cycle.high = low;
 			return;
 		}
 
-		cycle.low = Math.max(0, Math.min(maxPaletteIndex, minMapped));
-		cycle.high = Math.max(0, Math.min(maxPaletteIndex, maxMapped));
+		cycle.low = Math.max(0, Math.min(maxPaletteIndex, Math.min.apply(Math, remapped)));
+		cycle.high = Math.max(0, Math.min(maxPaletteIndex, Math.max.apply(Math, remapped)));
 	},
 
 	remapPaletteIndexAfterMove: function (index, fromIdx, toIdx) {

@@ -146,11 +146,11 @@ function adjustCycleRangeForMove(cycle, fromIndex, toIndex, maxPaletteIndex) {
 
   const remapped = [];
   for (let idx = low; idx <= high; idx++) {
-    if (idx === fromIndex) continue;
+    if (idx === fromIndex && !inRange(toIndex)) continue;
     remapped.push(remapIndexAfterMove(idx, fromIndex, toIndex));
   }
 
-  if (inRange(fromIndex)) {
+  if (!inRange(fromIndex) && inRange(toIndex)) {
     remapped.push(toIndex);
   }
 
