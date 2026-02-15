@@ -88,6 +88,13 @@
 					<div id="d_loading"></div>
 					<div class="clear"></div>
 				</div>
+				<div id="image_status_bar" aria-live="polite">
+					<div class="status-left">
+						<span id="status_image_name">No image</span>
+						<span id="status_image_dims"></span>
+					</div>
+					<div id="status_zoom">100%</div>
+				</div>
 
 				<div id="d_cycles_row" class="section">
 					<!-- <div class="label">CYCLES:</div> -->
@@ -339,7 +346,7 @@
 				<div class="modal-scroll-area help-content">
 					<h3>Image Tool Palette</h3>
 					<div class="help-tool-list">
-						<div class="help-tool-row"><span class="help-tool-icon">🔍</span><div><strong>Zoom</strong><p>Use Zoom to inspect details and focus your edits at different magnifications.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">🔍</span><div><strong>Zoom</strong><p>Drag right to zoom in and drag left to zoom out with continuous zoom control.</p><p><strong>Modifier:</strong> Hold <kbd>Option</kbd> / <kbd>Alt</kbd> to show the zoom-out cursor when using temporary zoom.</p></div></div>
 						<div class="help-tool-row"><span class="help-tool-icon">✎</span><div><strong>Pencil</strong><p>Use Pencil to paint with the active palette color directly onto the image.</p></div></div>
 						<div class="help-tool-row"><span class="help-tool-icon">🧪</span><div><strong>Eyedropper</strong><p>Use Eyedropper to sample a color from the image or palette and set it as active.</p></div></div>
 						<div class="help-tool-row"><span class="help-tool-icon">✋</span><div><strong>Move</strong><p>Use Move to pan around the canvas while zoomed in.</p></div></div>
@@ -380,6 +387,14 @@
 					<h3>Player</h3>
 					<p><strong>Standalone player script:</strong> Use the player script to load and play a JSON data file without the editor UI. <a href="src/player-core.js" download>Download standalone player script</a>.</p>
 					<p><strong>Standalone embeddable JSON:</strong> This export is self-executing. Embed it directly in any HTML page with a <code>&lt;script&gt;</code> tag&mdash;no separate player pairing is required.</p>
+
+					<h3>Shortcuts</h3>
+					<div class="help-tool-list">
+						<div class="help-tool-row"><span class="help-tool-icon"><kbd>Space</kbd></span><div><strong>Temporary Move</strong><p>Hold <kbd>Space</kbd> to temporarily switch to Move while held.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon"><kbd>⌘</kbd>/<kbd>Ctrl</kbd></span><div><strong>Temporary Zoom</strong><p>Hold <kbd>Space</kbd> + <kbd>⌘</kbd> (or <kbd>Ctrl</kbd> on non-Mac) to temporarily switch to Zoom while held.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">↩</span><div><strong>Undo</strong><p>Press <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Z</kbd> to undo the most recent paint or cycle edit.</p></div></div>
+						<div class="help-tool-row"><span class="help-tool-icon">Esc</span><div><strong>Cancel Tool Mode</strong><p>Press <kbd>Escape</kbd> to close open dialogs and clear active/temporary tool states.</p></div></div>
+					</div>
 				</div>
 			</div>
 		</div>
