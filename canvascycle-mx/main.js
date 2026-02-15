@@ -133,6 +133,11 @@ var CanvasCycle = {
 				}
 				CanvasCycle.toggleSelectedColor(this._idx);
 			};
+			div.ondblclick = function (e) {
+				e.preventDefault();
+				e.stopPropagation();
+				CanvasCycle.openPaletteColorPicker(this._idx, this);
+			};
 			div.ondragstart = function (e) {
 				e.dataTransfer.setData("text/plain", "" + this._idx);
 			};
@@ -160,24 +165,50 @@ var CanvasCycle = {
 		picker.tabIndex = -1;
 		picker.setAttribute("aria-hidden", "true");
 		picker.style.position = "fixed";
-		picker.style.left = "-1000px";
-		picker.style.top = "-1000px";
+		picker.style.left = "0px";
+		picker.style.top = "0px";
+		picker.style.width = "32px";
+		picker.style.height = "32px";
 		picker.style.opacity = "0";
 		picker.style.pointerEvents = "none";
+		picker.style.zIndex = "9999";
+		picker.style.display = "none";
 		picker.addEventListener("input", function () {
 			CanvasCycle.applyPaletteColorPickerValue(this.value);
+		});
+		picker.addEventListener("change", function () {
+			CanvasCycle.hidePaletteColorPicker();
+		});
+		picker.addEventListener("blur", function () {
+			CanvasCycle.hidePaletteColorPicker();
 		});
 		document.body.appendChild(picker);
 		this.paletteColorInputEl = picker;
 	},
 
-	openPaletteColorPicker: function (idx) {
+	hidePaletteColorPicker: function () {
+		if (!this.paletteColorInputEl) return;
+		this.paletteColorInputEl.style.display = "none";
+		this.paletteColorInputEl.style.opacity = "0";
+		this.paletteColorInputEl.style.pointerEvents = "none";
+	},
+
+	openPaletteColorPicker: function (idx, anchorEl) {
 		if (!this.bmp || !this.paletteColorInputEl) return;
 		if (idx < 0 || idx >= this.bmp.palette.baseColors.length) return;
 		var c = this.bmp.palette.baseColors[idx];
 		this.paletteEditColorIdx = idx;
 		this.selectColor(idx);
 		this.paletteColorInputEl.value = this.rgbToHex(c.red, c.green, c.blue);
+		if (anchorEl && anchorEl.getBoundingClientRect) {
+			var r = anchorEl.getBoundingClientRect();
+			this.paletteColorInputEl.style.left = Math.max(0, Math.round(r.left)) + "px";
+			this.paletteColorInputEl.style.top = Math.max(0, Math.round(r.top)) + "px";
+		}
+		this.paletteColorInputEl.style.display = "block";
+		this.paletteColorInputEl.style.opacity = "1";
+		this.paletteColorInputEl.style.pointerEvents = "auto";
+		this.paletteColorInputEl.focus();
 		this.paletteColorInputEl.click();
 	},
 
@@ -1013,7 +1044,7 @@ var CanvasCycle = {
 				idx +
 				'" data-key="active"' +
 				(cyc.active === false ? "" : ' checked="checked"') +
-				"></label>" +
+				'"></label>' +
 				'<div class="cycle_id">C' +
 				(idx + 1) +
 				"</div>" +
@@ -1051,6 +1082,9 @@ var CanvasCycle = {
 		container.onfocusin = function (e) {
 			CanvasCycle.syncSelectedColorToCycleField(e.target);
 		};
+		container.addEventListener("focus", function (e) {
+			CanvasCycle.syncSelectedColorToCycleField(e.target);
+		}, true);
 		container.oninput = function (e) {
 			CanvasCycle.syncSelectedColorToCycleField(e.target);
 		};
