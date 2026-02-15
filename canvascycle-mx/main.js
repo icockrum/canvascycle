@@ -40,6 +40,13 @@ var CanvasCycle = {
 	paletteDrag: null,
 	colorPopupOpen: false,
 	popupPlacementPadding: 8,
+	spaceKeyDown: false,
+	metaKeyDown: false,
+	altKeyDown: false,
+	temporaryToolActive: false,
+	temporaryToolPrevious: null,
+	forceZoomOutCursor: false,
+	cycleTimeOffset: 0,
 
 	settings: {
 		showOptions: true,
@@ -296,6 +303,8 @@ var CanvasCycle = {
 
 	bindKeyboardNavigation: function () {
 		document.addEventListener("keydown", function (e) {
+			CanvasCycle.trackModifierKeyState(e, true);
+			CanvasCycle.updateTemporaryToolShortcut(e);
 			if (e.key === "Escape") {
 				if (
 					CanvasCycle.activeTool ||
@@ -309,6 +318,58 @@ var CanvasCycle = {
 			}
 			CanvasCycle.handlePaletteArrowKey(e);
 		});
+		document.addEventListener("keyup", function (e) {
+			CanvasCycle.trackModifierKeyState(e, false);
+			CanvasCycle.updateTemporaryToolShortcut(e);
+		});
+		window.addEventListener("blur", function () {
+			CanvasCycle.spaceKeyDown = false;
+			CanvasCycle.metaKeyDown = false;
+			CanvasCycle.altKeyDown = false;
+			CanvasCycle.updateTemporaryToolShortcut();
+		});
+	},
+
+	trackModifierKeyState: function (e, isDown) {
+		if (e.code === "Space") this.spaceKeyDown = isDown;
+		if (e.key === "Meta") this.metaKeyDown = isDown;
+		if (e.key === "Alt") this.altKeyDown = isDown;
+		if (!isDown) {
+			this.metaKeyDown = !!e.metaKey;
+			this.altKeyDown = !!e.altKey;
+		}
+	},
+
+	updateTemporaryToolShortcut: function (e) {
+		var reserved = this.isArrowKeyReservedTarget(document.activeElement);
+		var nextTool = null;
+		if (!reserved && this.spaceKeyDown)
+			nextTool = this.metaKeyDown ? "zoom" : "move";
+		var wantsZoomOut = !!(nextTool === "zoom" && this.altKeyDown);
+
+		if (nextTool && !this.temporaryToolActive) {
+			this.temporaryToolActive = true;
+			this.temporaryToolPrevious = this.activeTool;
+		}
+
+		if (nextTool) {
+			this.forceZoomOutCursor = wantsZoomOut;
+			this.setTool(nextTool);
+			this.updateCanvasCursor(wantsZoomOut);
+			if (e && (e.code === "Space" || e.key === "Meta" || e.key === "Alt"))
+				e.preventDefault();
+			return;
+		}
+
+		if (this.temporaryToolActive) {
+			this.forceZoomOutCursor = false;
+			this.setTool(this.temporaryToolPrevious);
+			this.temporaryToolActive = false;
+			this.temporaryToolPrevious = null;
+			return;
+		}
+
+		this.forceZoomOutCursor = false;
 	},
 
 	disableToolsAndDragging: function () {
@@ -316,6 +377,9 @@ var CanvasCycle = {
 		this.dragging = false;
 		this.isPointerDown = false;
 		this.paletteDrag = null;
+		this.temporaryToolActive = false;
+		this.temporaryToolPrevious = null;
+		this.forceZoomOutCursor = false;
 		this.updateCanvasCursor();
 	},
 
@@ -515,6 +579,7 @@ var CanvasCycle = {
 		this.updateHighlightColor();
 		this.paused = false;
 		this.pausedTime = 0;
+		this.cycleTimeOffset = 0;
 		$("btn_pause").innerHTML = "⏸";
 		$("btn_pause").title = "Pause";
 		this.activeFilename = img.filename || "image.json";
@@ -544,6 +609,19 @@ var CanvasCycle = {
 		var btn = $("btn_pause");
 		btn.innerHTML = this.paused ? "▶" : "⏸";
 		btn.title = this.paused ? "Play" : "Pause";
+	},
+
+	resetCycleAnimation: function () {
+		if (!this.bmp) return;
+		var baseTick = this.paused ? this.pausedTime : GetTickCount();
+		this.cycleTimeOffset = baseTick;
+		this.renderDirty = true;
+		if (this.paused) {
+			this.bmp.palette.copyColors(
+				this.bmp.palette.baseColors,
+				this.bmp.palette.colors,
+			);
+		}
 	},
 
 	toggleSelectedColor: function (idx) {
@@ -593,7 +671,8 @@ var CanvasCycle = {
 		}
 		$("d_debug").innerHTML = debug;
 
-		var renderTime = this.paused ? this.pausedTime : GetTickCount();
+		var rawRenderTime = this.paused ? this.pausedTime : GetTickCount();
+		var renderTime = Math.max(0, rawRenderTime - this.cycleTimeOffset);
 		this.bmp.palette.cycle(
 			this.bmp.palette.baseColors,
 			renderTime,
@@ -640,21 +719,10 @@ var CanvasCycle = {
 
 	renderCyclesEditor: function () {
 		var container = $("cycles_editor");
+		var header = $("cycles_header");
 		container.innerHTML = "";
 		if (!this.bmp) return;
-		if (this.bmp.palette.cycles.length) {
-			var header = document.createElement("div");
-			header.className = "cycle_header";
-			header.innerHTML =
-				'<div class="cycle_id"><!--Cycle--></div>' +
-				'<div class="cycle_col">Direction</div>' +
-				'<div class="cycle_col">Rate</div>' +
-				'<div class="cycle_col">Low</div>' +
-				'<div class="cycle_col">High</div>' +
-				'<div class="cycle_col">Active</div>' +
-				'<div class="cycle_col"><!--Remove--></div>';
-			container.appendChild(header);
-		}
+		header.style.display = this.bmp.palette.cycles.length ? "grid" : "none";
 		for (var idx = 0; idx < this.bmp.palette.cycles.length; idx++) {
 			var cyc = this.bmp.palette.cycles[idx];
 			var row = document.createElement("div");
@@ -1021,12 +1089,13 @@ var CanvasCycle = {
 
 	updateCanvasCursor: function (minus) {
 		var canvas = $("mycanvas");
+		var showMinus = !!(minus || this.forceZoomOutCursor);
 		if (!this.activeTool) canvas.style.cursor = "default";
 		else if (this.activeTool === "pencil") canvas.style.cursor = "crosshair";
 		else if (this.activeTool === "eyedropper") canvas.style.cursor = "copy";
 		else if (this.activeTool === "move")
 			canvas.style.cursor = this.dragging ? "grabbing" : "grab";
-		else canvas.style.cursor = minus ? "zoom-out" : "zoom-in";
+		else canvas.style.cursor = showMinus ? "zoom-out" : "zoom-in";
 	},
 
 	canvasToImagePixel: function (e) {
@@ -1061,7 +1130,7 @@ var CanvasCycle = {
 	},
 
 	onCanvasMouseMove: function (e) {
-		this.updateCanvasCursor(e.altKey);
+		this.updateCanvasCursor(e.altKey || this.forceZoomOutCursor);
 		var pixel = this.canvasToImagePixel(e);
 		if (this.isPointerDown && this.activeTool === "pencil" && pixel)
 			this.paintPixel(pixel.x, pixel.y);

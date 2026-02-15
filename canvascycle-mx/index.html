@@ -71,6 +71,15 @@
 
 				<div id="d_cycles_row" class="section">
 					<!-- <div class="label">CYCLES:</div> -->
+					<div id="cycles_header" class="cycle_header">
+						<div class="cycle_id"><!--Cycle--></div>
+						<div class="cycle_col">Direction</div>
+						<div class="cycle_col">Rate</div>
+						<div class="cycle_col">Low</div>
+						<div class="cycle_col">High</div>
+						<div class="cycle_col">Active</div>
+						<div class="cycle_col"><!--Remove--></div>
+					</div>
 					<div id="cycles_editor"></div>
 					<div id="cycles_toolbar">
 						<div class="button left right" onClick="CC.addCycle()">
@@ -133,6 +142,14 @@
 							checked
 							onChange="CC.setBlendShift(this.checked)"
 					/></label>
+					<button
+						id="btn_cycle_reset"
+						class="button icon-btn"
+						title="Reset Cycle Animation"
+						onClick="CC.resetCycleAnimation()"
+					>
+						↺
+					</button>
 					<button
 						id="btn_pause"
 						class="button icon-btn"
