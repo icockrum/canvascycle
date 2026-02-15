@@ -53,6 +53,8 @@ var CanvasCycle = {
 	pendingPaletteSortMode: "",
 	paletteEditColorIdx: -1,
 	paletteColorInputEl: null,
+	lastPaletteClickIdx: -1,
+	lastPaletteClickAt: 0,
 
 	settings: {
 		showOptions: true,
@@ -110,8 +112,14 @@ var CanvasCycle = {
 				CanvasCycle.hoverHighlightColor = -1;
 				CanvasCycle.updateHighlightColor();
 			};
-			div.onclick = function (e) {
-				if (e && e.detail > 1) {
+			div.onclick = function () {
+				var now = Date.now();
+				var isDoubleClick =
+					CanvasCycle.lastPaletteClickIdx === this._idx &&
+					now - CanvasCycle.lastPaletteClickAt <= 350;
+				CanvasCycle.lastPaletteClickIdx = this._idx;
+				CanvasCycle.lastPaletteClickAt = now;
+				if (isDoubleClick) {
 					CanvasCycle.openPaletteColorPicker(this._idx);
 					return;
 				}
@@ -1089,6 +1097,8 @@ var CanvasCycle = {
 		if (isNaN(idx) || idx < 0 || idx >= this.bmp.palette.baseColors.length)
 			return;
 		this.selectColor(idx);
+		this.keyboardHighlightColor = idx;
+		this.updateHighlightColor();
 	},
 
 	addCycle: function () {
