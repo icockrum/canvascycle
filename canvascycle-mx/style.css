@@ -477,6 +477,9 @@ div#d_debug .fps {
 .help-content li {
 	line-height: 1.4;
 }
+.help-content p {
+	max-width: 600px;
+}
 .help-tool-list {
 	display: flex;
 	flex-direction: column;
