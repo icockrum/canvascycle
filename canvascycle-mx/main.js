@@ -148,11 +148,29 @@ var CanvasCycle = {
 	bindMenus: function () {
 		var trigger = $("btn_file_menu");
 		var menu = $("file_menu");
+		var uploadPNGItem = $("menu_upload_png");
+		var uploadJSONItem = $("menu_upload_json");
+		var exportJSONItem = $("menu_export_json");
+		var exportEmbedItem = $("menu_export_embed");
 		trigger.addEventListener("click", function (e) {
 			e.stopPropagation();
 			var isHidden = /(^|\s)hidden(\s|$)/.test(menu.className);
 			menu.setClass("hidden", !isHidden);
 			trigger.setClass("open", isHidden);
+		});
+		uploadPNGItem.addEventListener("click", function () {
+			CanvasCycle.closeFileMenu();
+		});
+		uploadJSONItem.addEventListener("click", function () {
+			CanvasCycle.closeFileMenu();
+		});
+		exportJSONItem.addEventListener("click", function () {
+			CanvasCycle.downloadCurrentJSON();
+			CanvasCycle.closeFileMenu();
+		});
+		exportEmbedItem.addEventListener("click", function () {
+			CanvasCycle.downloadCurrentEmbed();
+			CanvasCycle.closeFileMenu();
 		});
 		menu.addEventListener("click", function (e) {
 			e.stopPropagation();
