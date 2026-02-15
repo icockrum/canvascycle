@@ -1263,6 +1263,8 @@ var CanvasCycle = {
 			var cyc = this.bmp.palette.cycles[idx];
 			var row = document.createElement("div");
 			row.className = "cycle_row";
+			if (cyc.reverse === 2) cyc.reverse = 1;
+			cyc.reverse = cyc.reverse ? 1 : 0;
 			row.innerHTML =
 				'<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' +
 				idx +
@@ -1287,15 +1289,15 @@ var CanvasCycle = {
 				'" data-key="rate" value="' +
 				cyc.rate +
 				'"></label>' +
-				'<label class="cycle_field"><select data-cycle="' +
+				'<label class="cycle_field cycle_reverse"><input type="checkbox" data-cycle="' +
 				idx +
-				'" data-key="reverse"><option>0</option><option>1</option><option>2</option></select></label>' +
+				'" data-key="reverse"' +
+				(cyc.reverse ? ' checked="checked"' : '') +
+				'></label>' +
 				'<div class="button cycle_remove" data-action="remove" data-cycle="' +
 				idx +
 				'">x</div>';
 			container.appendChild(row);
-			var sel = row.querySelector("select");
-			sel.value = "" + cyc.reverse;
 		}
 		container.onclick = function (e) {
 			var t = e.target;
@@ -1330,10 +1332,16 @@ var CanvasCycle = {
 				CanvasCycle.syncUploadedImageData();
 				return;
 			}
-			if (key === "low" || key === "high" || key === "reverse") {
+			if (key === "reverse") {
+				cyc.reverse = val ? 1 : 0;
+				CanvasCycle.bmp.optimize();
+				CanvasCycle.markImageEdited();
+				CanvasCycle.syncUploadedImageData();
+				return;
+			}
+			if (key === "low" || key === "high") {
 				if (isNaN(val)) val = 0;
-				if (key !== "reverse") val = Math.max(0, Math.min(255, val));
-				if (key === "reverse") val = Math.max(0, Math.min(2, val));
+				val = Math.max(0, Math.min(255, val));
 				t.value = "" + val;
 			}
 			cyc[key] = isNaN(val) ? 0 : val;
@@ -1415,7 +1423,7 @@ var CanvasCycle = {
 					low: c.low,
 					high: c.high,
 					rate: c.rate,
-					reverse: c.reverse,
+					reverse: c.reverse ? 1 : 0,
 					active: c.active !== false,
 				};
 			}),
@@ -1606,7 +1614,7 @@ var CanvasCycle = {
 					low: c.low,
 					high: c.high,
 					rate: c.rate,
-					reverse: c.reverse,
+					reverse: c.reverse ? 1 : 0,
 					active: c.active !== false,
 				};
 			}),
@@ -1627,7 +1635,7 @@ var CanvasCycle = {
 
 	buildEmbedScript: function (payload) {
 		var runtime =
-			"function m(v,n,x){var z=Number(v);return Number.isNaN(z)?n:Math.max(n,Math.min(x,z))}function n(i){return{filename:i.filename||'untitled.json',width:i.width,height:i.height,pixels:i.pixels instanceof Uint8Array?i.pixels:Uint8Array.from(i.pixels||[]),colors:(i.colors||[]).map(function(c){return[c[0],c[1],c[2]]}),cycles:(i.cycles||[]).map(function(c){return{low:m(c.low,0,255),high:m(c.high,0,255),rate:Number(c.rate)||0,reverse:m(c.reverse,0,2),active:c.active!==false}})}}function g(b,y,t){var o=b.map(function(c){return[c[0],c[1],c[2]]});for(var i=0;i<y.length;i++){var c=y[i];if(!c||c.active===false||!c.rate)continue;var l=Math.max(0,c.low|0),h=Math.min(255,c.high|0);if(h<=l)continue;var s=h-l+1,a=Math.floor((t/(1000/(c.rate/280)))%s),r=c.reverse===2?(s-a)%s:a;if(!r)continue;var q=o.slice(l,h+1);for(var j=0;j<s;j++)o[l+((j+r)%s)]=q[j]}return o}function P(cv){this.canvas=cv;this.ctx=cv.getContext('2d');this.imageData=null;this.data=null;this.paused=false;this.raf=0;this.lastDraw=0;this.targetFps=60;this.loop=this.loop.bind(this)}P.prototype.loadFromData=function(d){this.data=n(d);this.canvas.width=this.data.width;this.canvas.height=this.data.height;this.imageData=this.ctx.createImageData(this.data.width,this.data.height);this.lastDraw=performance.now();if(!this.raf)this.raf=requestAnimationFrame(this.loop)};P.prototype.loop=function(now){if(this.data&&!this.paused){var min=1000/this.targetFps;if(now-this.lastDraw>=min){this.render(now);this.lastDraw=now}}this.raf=requestAnimationFrame(this.loop)};P.prototype.render=function(now){var colors=g(this.data.colors,this.data.cycles,now),src=this.data.pixels,dst=this.imageData.data;for(var i=0;i<src.length;i++){var c=colors[src[i]]||[0,0,0],di=i*4;dst[di]=c[0];dst[di+1]=c[1];dst[di+2]=c[2];dst[di+3]=255}this.ctx.putImageData(this.imageData,0,0)};";
+			"function m(v,n,x){var z=Number(v);return Number.isNaN(z)?n:Math.max(n,Math.min(x,z))}function n(i){return{filename:i.filename||'untitled.json',width:i.width,height:i.height,pixels:i.pixels instanceof Uint8Array?i.pixels:Uint8Array.from(i.pixels||[]),colors:(i.colors||[]).map(function(c){return[c[0],c[1],c[2]]}),cycles:(i.cycles||[]).map(function(c){return{low:m(c.low,0,255),high:m(c.high,0,255),rate:Number(c.rate)||0,reverse:(Number(c.reverse)===2||Number(c.reverse)===1)?1:0,active:c.active!==false}})}}function g(b,y,t){var o=b.map(function(c){return[c[0],c[1],c[2]]});for(var i=0;i<y.length;i++){var c=y[i];if(!c||c.active===false||!c.rate)continue;var l=Math.max(0,c.low|0),h=Math.min(255,c.high|0);if(h<=l)continue;var s=h-l+1,a=Math.floor((t/(1000/(c.rate/280)))%s),r=c.reverse===1?(s-a)%s:a;if(!r)continue;var q=o.slice(l,h+1);for(var j=0;j<s;j++)o[l+((j+r)%s)]=q[j]}return o}function P(cv){this.canvas=cv;this.ctx=cv.getContext('2d');this.imageData=null;this.data=null;this.paused=false;this.raf=0;this.lastDraw=0;this.targetFps=60;this.loop=this.loop.bind(this)}P.prototype.loadFromData=function(d){this.data=n(d);this.canvas.width=this.data.width;this.canvas.height=this.data.height;this.imageData=this.ctx.createImageData(this.data.width,this.data.height);this.lastDraw=performance.now();if(!this.raf)this.raf=requestAnimationFrame(this.loop)};P.prototype.loop=function(now){if(this.data&&!this.paused){var min=1000/this.targetFps;if(now-this.lastDraw>=min){this.render(now);this.lastDraw=now}}this.raf=requestAnimationFrame(this.loop)};P.prototype.render=function(now){var colors=g(this.data.colors,this.data.cycles,now),src=this.data.pixels,dst=this.imageData.data;for(var i=0;i<src.length;i++){var c=colors[src[i]]||[0,0,0],di=i*4;dst[di]=c[0];dst[di+1]=c[1];dst[di+2]=c[2];dst[di+3]=255}this.ctx.putImageData(this.imageData,0,0)};";
 		return (
 			'(function(){"use strict";' +
 			runtime +

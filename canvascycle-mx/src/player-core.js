@@ -77,7 +77,7 @@ export function normalizeData(input) {
       low: clampNum(cy.low, 0, 255),
       high: clampNum(cy.high, 0, 255),
       rate: Number(cy.rate) || 0,
-      reverse: clampNum(cy.reverse, 0, 2)
+      reverse: (Number(cy.reverse) === 2 || Number(cy.reverse) === 1) ? 1 : 0
     }))
   };
 }
@@ -91,7 +91,7 @@ export function getCycledColors(baseColors, cycles, timeNow) {
     if (high <= low) continue;
     const size = high - low + 1;
     const amountRaw = Math.floor((timeNow / (1000 / (cycle.rate / 280))) % size);
-    const amount = cycle.reverse === 2 ? (size - amountRaw) % size : amountRaw;
+    const amount = cycle.reverse === 1 ? (size - amountRaw) % size : amountRaw;
     if (!amount) continue;
     const segment = colors.slice(low, high + 1);
     for (let i = 0; i < size; i++) {

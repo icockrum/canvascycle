@@ -17,7 +17,7 @@
           low: clampNum(cy.low, 0, 255),
           high: clampNum(cy.high, 0, 255),
           rate: Number(cy.rate) || 0,
-          reverse: clampNum(cy.reverse, 0, 2)
+          reverse: (Number(cy.reverse) === 2 || Number(cy.reverse) === 1) ? 1 : 0
         };
       })
     };
@@ -33,7 +33,7 @@
       if (high <= low) continue;
       var size = high - low + 1;
       var amountRaw = Math.floor((timeNow / (1000 / (cycle.rate / 280))) % size);
-      var amount = cycle.reverse === 2 ? (size - amountRaw) % size : amountRaw;
+      var amount = cycle.reverse === 1 ? (size - amountRaw) % size : amountRaw;
       if (!amount) continue;
       var segment = colors.slice(low, high + 1);
       for (var j = 0; j < size; j++) {

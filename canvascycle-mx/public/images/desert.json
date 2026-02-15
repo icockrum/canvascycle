@@ -18519,13 +18519,13 @@
 			"low": 65,
 			"high": 111,
 			"rate": 3500,
-			"reverse": 2
+			"reverse": 1
 		},
 		{
 			"low": 197,
 			"high": 255,
 			"rate": 3500,
-			"reverse": 2
+			"reverse": 1
 		}
 	]
 }

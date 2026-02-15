@@ -261,20 +261,20 @@
 		[255, 255, 255]
 	],
 	"cycles": [
-		{ "reverse": 2, "rate": 0, "low": 224, "high": 231 },
+		{ "reverse": 1, "rate": 0, "low": 224, "high": 231 },
 		{ "reverse": 0, "rate": 1842, "low": 171, "high": 176 },
 		{ "reverse": 0, "rate": 1689, "low": 163, "high": 170 },
 		{ "reverse": 0, "rate": 1536, "low": 155, "high": 162 },
 		{ "reverse": 0, "rate": 1536, "low": 146, "high": 153 },
 		{ "reverse": 0, "rate": 1536, "low": 137, "high": 144 },
 		{ "reverse": 0, "rate": 2457, "low": 128, "high": 135 },
-		{ "reverse": 2, "rate": 2304, "low": 113, "high": 117 },
+		{ "reverse": 1, "rate": 2304, "low": 113, "high": 117 },
 		{ "reverse": 0, "rate": 1689, "low": 103, "high": 110 },
 		{ "reverse": 0, "rate": 1536, "low": 95, "high": 102 },
 		{ "reverse": 0, "rate": 3456, "low": 87, "high": 94 },
 		{ "reverse": 0, "rate": 2148, "low": 73, "high": 80 },
 		{ "reverse": 0, "rate": 2457, "low": 56, "high": 63 },
-		{ "reverse": 2, "rate": 3456, "low": 48, "high": 55 },
+		{ "reverse": 1, "rate": 3456, "low": 48, "high": 55 },
 		{ "reverse": 0, "rate": 3456, "low": 32, "high": 47 },
 		{ "reverse": 0, "rate": 3456, "low": 16, "high": 31 }
 	],

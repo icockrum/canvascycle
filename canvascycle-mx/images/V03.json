@@ -262,21 +262,21 @@
 	],
 	"cycles": [
 		{ "reverse": 0, "rate": 0, "low": 3, "high": 5 },
-		{ "reverse": 2, "rate": 0, "low": 10, "high": 13 },
+		{ "reverse": 1, "rate": 0, "low": 10, "high": 13 },
 		{ "reverse": 0, "rate": 0, "low": 14, "high": 19 },
 		{ "reverse": 0, "rate": 0, "low": 20, "high": 24 },
 		{ "reverse": 0, "rate": 0, "low": 25, "high": 29 },
-		{ "reverse": 2, "rate": 0, "low": 30, "high": 34 },
-		{ "reverse": 2, "rate": 1689, "low": 160, "high": 167 },
-		{ "reverse": 2, "rate": 1689, "low": 168, "high": 175 },
+		{ "reverse": 1, "rate": 0, "low": 30, "high": 34 },
+		{ "reverse": 1, "rate": 1689, "low": 160, "high": 167 },
+		{ "reverse": 1, "rate": 1689, "low": 168, "high": 175 },
 		{ "reverse": 0, "rate": 1689, "low": 176, "high": 183 },
 		{ "reverse": 0, "rate": 1689, "low": 184, "high": 191 },
 		{ "reverse": 0, "rate": 1689, "low": 192, "high": 199 },
 		{ "reverse": 0, "rate": 1689, "low": 200, "high": 207 },
-		{ "reverse": 2, "rate": 1689, "low": 208, "high": 215 },
+		{ "reverse": 1, "rate": 1689, "low": 208, "high": 215 },
 		{ "reverse": 0, "rate": 1689, "low": 216, "high": 223 },
-		{ "reverse": 2, "rate": 1689, "low": 224, "high": 231 },
-		{ "reverse": 2, "rate": 1689, "low": 232, "high": 239 }
+		{ "reverse": 1, "rate": 1689, "low": 224, "high": 231 },
+		{ "reverse": 1, "rate": 1689, "low": 232, "high": 239 }
 	],
 	"pixels": [
 		3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5,

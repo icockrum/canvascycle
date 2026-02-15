@@ -15696,25 +15696,25 @@
 			"low": 65,
 			"high": 70,
 			"rate": 3500,
-			"reverse": 2
+			"reverse": 1
 		},
 		{
 			"low": 99,
 			"high": 112,
 			"rate": 3500,
-			"reverse": 2
+			"reverse": 1
 		},
 		{
 			"low": 156,
 			"high": 174,
 			"rate": 3500,
-			"reverse": 2
+			"reverse": 1
 		},
 		{
 			"low": 207,
 			"high": 224,
 			"rate": 3500,
-			"reverse": 2
+			"reverse": 1
 		}
 	]
 }

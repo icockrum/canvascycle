@@ -281,6 +281,10 @@ div#d_debug .fps {
 	border: 1px solid var(--line);
 	color: var(--text);
 }
+.cycle_row input[type="checkbox"] {
+	width: auto;
+	accent-color: var(--accent);
+}
 .cycle_remove,
 #add_cycle {
 	width: 20px;

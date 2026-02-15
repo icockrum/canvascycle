@@ -187,7 +187,7 @@ function renderCyclesEditor() {
     row.className = 'cycle-row';
 
     row.appendChild(makeLabel(`Cycle ${idx + 1}`));
-    row.appendChild(makeSelect('reverse', cycle.reverse, [0, 1, 2], (v) => cycle.reverse = Number(v)));
+    row.appendChild(makeSelect('reverse', cycle.reverse, [0, 1], (v) => cycle.reverse = Number(v)));
     row.appendChild(makeInput('rate', cycle.rate, -99999, 99999, (v) => cycle.rate = Number(v)));
     row.appendChild(makeInput('low', cycle.low, 0, 255, (v) => cycle.low = Number(v)));
     row.appendChild(makeInput('high', cycle.high, 0, 255, (v) => cycle.high = Number(v)));
