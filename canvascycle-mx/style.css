@@ -14,6 +14,7 @@
 	--canvasheight: 480px;
 	--canvaswidth: 640px;
 	--cycles-pad: 10px;
+	--statusbarheight: 24px;
 }
 @media (prefers-color-scheme: light) {
 	:root {
@@ -207,6 +208,42 @@ div#d_debug .fps {
 #d_canvas_row {
 	position: relative;
 }
+#image_status_bar {
+	margin-top: 4px;
+	height: var(--statusbarheight);
+	width: var(--canvaswidth);
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 8px;
+	border: 1px solid var(--line);
+	border-top: 0;
+	background: var(--panel);
+	color: var(--muted);
+	font-size: 11px;
+}
+#image_status_bar .status-left {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+}
+#status_image_name {
+	color: var(--text);
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 360px;
+}
+#status_image_dims,
+#status_zoom {
+	white-space: nowrap;
+}
+#status_zoom {
+	color: var(--text);
+}
 #d_loading {
 	position: absolute;
 	width: 32px;
@@ -228,7 +265,7 @@ div#d_debug .fps {
 	flex-direction: column;
 	max-height: calc(
 		100dvh - 10px - var(--container-pad) - var(--menuheight) -
-			(var(--cycles-pad) * 2) - var(--canvasheight)
+			(var(--cycles-pad) * 2) - var(--canvasheight) - var(--statusbarheight)
 	);
 }
 .label {
@@ -539,6 +576,19 @@ div#d_debug .fps {
 	background: var(--accent);
 	border-color: var(--accent);
 	color: #fff;
+}
+.help-content kbd {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 5px;
+	min-height: 18px;
+	border-radius: 4px;
+	border: 1px solid var(--line);
+	background: var(--panel);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 11px;
+	line-height: 1;
 }
 .button.default-action {
 	border-width: 2px;

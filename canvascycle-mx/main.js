@@ -27,6 +27,7 @@ var CanvasCycle = {
 	currentSource: "sample",
 	hasUnsavedEdits: false,
 	activeFilename: "",
+	displayFilename: "",
 	pendingSceneIdx: -1,
 	pendingSceneName: "",
 	view: { zoom: 1, minZoom: 0.25, maxZoom: 10, offsetX: 0, offsetY: 0 },
@@ -45,10 +46,12 @@ var CanvasCycle = {
 	popupPlacementPadding: 8,
 	spaceKeyDown: false,
 	metaKeyDown: false,
+	ctrlKeyDown: false,
 	altKeyDown: false,
 	temporaryToolActive: false,
 	temporaryToolPrevious: null,
 	forceZoomOutCursor: false,
+	zoomDrag: null,
 	cycleTimeOffset: 0,
 	pendingPaletteSortMode: "",
 	paletteEditColorIdx: -1,
@@ -98,6 +101,7 @@ var CanvasCycle = {
 		this.setGridOverlay(this.settings.gridOverlay);
 		this.setTool(null);
 		this.updateColorChip();
+		this.updateStatusBar();
 		this.loadImage(scenes[0].name);
 		this.sceneIdx = 0;
 	},
@@ -453,6 +457,7 @@ var CanvasCycle = {
 		window.addEventListener("mouseup", function () {
 			CanvasCycle.dragging = false;
 			CanvasCycle.isPointerDown = false;
+			CanvasCycle.zoomDrag = null;
 			if (CanvasCycle.activeTool !== "eyedropper") {
 				CanvasCycle.eyedropperHoverColor = -1;
 				CanvasCycle.updateHighlightColor();
@@ -851,6 +856,7 @@ var CanvasCycle = {
 		window.addEventListener("blur", function () {
 			CanvasCycle.spaceKeyDown = false;
 			CanvasCycle.metaKeyDown = false;
+			CanvasCycle.ctrlKeyDown = false;
 			CanvasCycle.altKeyDown = false;
 			CanvasCycle.updateTemporaryToolShortcut();
 		});
@@ -859,18 +865,21 @@ var CanvasCycle = {
 	trackModifierKeyState: function (e, isDown) {
 		if (e.code === "Space") this.spaceKeyDown = isDown;
 		if (e.key === "Meta") this.metaKeyDown = isDown;
+		if (e.key === "Control") this.ctrlKeyDown = isDown;
 		if (e.key === "Alt") this.altKeyDown = isDown;
 		if (!isDown) {
 			this.metaKeyDown = !!e.metaKey;
+			this.ctrlKeyDown = !!e.ctrlKey;
 			this.altKeyDown = !!e.altKey;
 		}
 	},
 
 	updateTemporaryToolShortcut: function (e) {
 		var reserved = this.isArrowKeyReservedTarget(document.activeElement);
+		var zoomModifierDown = this.metaKeyDown || this.ctrlKeyDown;
 		var nextTool = null;
 		if (!reserved && this.spaceKeyDown)
-			nextTool = this.metaKeyDown ? "zoom" : "move";
+			nextTool = zoomModifierDown ? "zoom" : "move";
 		var wantsZoomOut = !!(nextTool === "zoom" && this.altKeyDown);
 
 		if (nextTool && !this.temporaryToolActive) {
@@ -882,7 +891,7 @@ var CanvasCycle = {
 			this.forceZoomOutCursor = wantsZoomOut;
 			this.setTool(nextTool);
 			this.updateCanvasCursor(wantsZoomOut);
-			if (e && (e.code === "Space" || e.key === "Meta" || e.key === "Alt"))
+			if (e && (e.code === "Space" || e.key === "Meta" || e.key === "Control" || e.key === "Alt"))
 				e.preventDefault();
 			return;
 		}
@@ -1115,8 +1124,10 @@ var CanvasCycle = {
 		$("btn_pause").innerHTML = "⏸";
 		$("btn_pause").title = "Pause";
 		this.activeFilename = img.filename || "image.json";
+		this.displayFilename = img.displayFilename || this.activeFilename;
 		this.clearUndoBuffer();
 		this.resetView();
+		this.updateStatusBar();
 		this.renderCyclesEditor();
 		this.updateSceneSelection();
 		this.closeColorChipPopup();
@@ -1544,6 +1555,7 @@ var CanvasCycle = {
 			try {
 				var img = JSON.parse(reader.result);
 				img.filename = file.name;
+				img.displayFilename = file.name;
 				CanvasCycle.uploadedImageData = img;
 				CanvasCycle.currentSource = "upload";
 				CanvasCycle.hasUnsavedEdits = false;
@@ -1581,6 +1593,7 @@ var CanvasCycle = {
 				}
 				var img = {
 					filename: file.name.replace(/\.png$/i, ".json"),
+					displayFilename: file.name,
 					width: png.width,
 					height: png.height,
 					pixels: pixels,
@@ -1748,6 +1761,7 @@ var CanvasCycle = {
 
 	setTool: function (tool) {
 		if (tool !== "eyedropper") this.eyedropperHoverColor = -1;
+		if (tool !== "zoom") this.zoomDrag = null;
 		this.activeTool = tool || null;
 		["zoom", "pencil", "eyedropper", "move"].forEach(function (name) {
 			$("tool_" + name).setClass("active", name === CanvasCycle.activeTool);
@@ -1783,7 +1797,7 @@ var CanvasCycle = {
 
 	onCanvasMouseDown: function (e) {
 		var pixel = this.canvasToImagePixel(e);
-		if (this.activeTool === "zoom" && pixel) this.applyZoomClick(e, pixel);
+		if (this.activeTool === "zoom" && pixel) this.startZoomDrag(e, pixel);
 		else if (this.activeTool === "pencil" && pixel)
 			this.paintPixel(pixel.x, pixel.y);
 		else if (this.activeTool === "eyedropper" && pixel)
@@ -1808,6 +1822,8 @@ var CanvasCycle = {
 			this.eyedropperHoverColor = -1;
 		}
 		this.updateHighlightColor();
+		if (this.zoomDrag && this.activeTool === "zoom" && this.isPointerDown)
+			this.updateZoomDrag(e);
 		if (this.isPointerDown && this.activeTool === "pencil" && pixel)
 			this.paintPixel(pixel.x, pixel.y);
 		if (!this.dragging || this.activeTool !== "move") return;
@@ -1815,18 +1831,30 @@ var CanvasCycle = {
 		this.view.offsetY = this.dragStartOffsetY + (e.clientY - this.dragStartY);
 	},
 
-	applyZoomClick: function (e, pixel) {
-		var oldZoom = this.view.zoom;
-		var nextZoom = oldZoom;
-		if (e.altKey) {
-			if (oldZoom > 1) nextZoom = Math.max(1, oldZoom - 1);
-			else nextZoom = Math.max(0.25, oldZoom - 0.25);
-		} else nextZoom = Math.min(10, oldZoom + 1);
-		var sx = pixel.x * oldZoom + this.view.offsetX;
-		var sy = pixel.y * oldZoom + this.view.offsetY;
+	startZoomDrag: function (e, pixel) {
+		var rect = $("mycanvas").getBoundingClientRect();
+		this.zoomDrag = {
+			startClientX: e.clientX,
+			startZoom: this.view.zoom,
+			pixelX: pixel.x,
+			pixelY: pixel.y,
+			anchorCanvasX: e.clientX - rect.left,
+			anchorCanvasY: e.clientY - rect.top,
+		};
+		this.updateZoomDrag(e);
+	},
+
+	updateZoomDrag: function (e) {
+		if (!this.zoomDrag) return;
+		var deltaX = e.clientX - this.zoomDrag.startClientX;
+		var nextZoom = this.zoomDrag.startZoom + deltaX * 0.01;
+		nextZoom = Math.max(this.view.minZoom, Math.min(this.view.maxZoom, nextZoom));
+		if (nextZoom === this.view.zoom) return;
+
 		this.view.zoom = nextZoom;
-		this.view.offsetX = sx - pixel.x * nextZoom;
-		this.view.offsetY = sy - pixel.y * nextZoom;
+		this.view.offsetX = this.zoomDrag.anchorCanvasX - this.zoomDrag.pixelX * nextZoom;
+		this.view.offsetY = this.zoomDrag.anchorCanvasY - this.zoomDrag.pixelY * nextZoom;
+		this.updateStatusBar();
 	},
 
 	paintPixel: function (x, y) {
@@ -1880,9 +1908,29 @@ var CanvasCycle = {
 	resetView: function () {
 		var canvas = $("mycanvas");
 		this.view.zoom = 1;
+		this.zoomDrag = null;
 		if (!this.bmp) return;
 		this.view.offsetX = Math.floor((canvas.width - this.bmp.width) / 2);
 		this.view.offsetY = Math.floor((canvas.height - this.bmp.height) / 2);
+		this.updateStatusBar();
+	},
+
+	getDisplayImageName: function () {
+		if (this.currentSource === "sample" && this.sceneIdx >= 0 && scenes[this.sceneIdx])
+			return scenes[this.sceneIdx].title;
+		return this.displayFilename || this.activeFilename || "Untitled";
+	},
+
+	updateStatusBar: function () {
+		var nameEl = $("status_image_name");
+		var dimsEl = $("status_image_dims");
+		var zoomEl = $("status_zoom");
+		if (!nameEl || !dimsEl || !zoomEl) return;
+
+		nameEl.textContent = this.getDisplayImageName();
+		if (this.bmp) dimsEl.textContent = this.bmp.width + " × " + this.bmp.height;
+		else dimsEl.textContent = "";
+		zoomEl.textContent = Math.round(this.view.zoom * 100) + "%";
 	},
 
 	drawPixelGrid: function () {
