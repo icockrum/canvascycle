@@ -51,6 +51,8 @@ var CanvasCycle = {
 	forceZoomOutCursor: false,
 	cycleTimeOffset: 0,
 	pendingPaletteSortMode: "",
+	paletteEditColorIdx: -1,
+	paletteColorInputEl: null,
 
 	settings: {
 		showOptions: true,
@@ -119,6 +121,11 @@ var CanvasCycle = {
 				}
 				CanvasCycle.toggleSelectedColor(this._idx);
 			};
+			div.ondblclick = function (e) {
+				e.preventDefault();
+				e.stopPropagation();
+				CanvasCycle.openPaletteColorPicker(this._idx);
+			};
 			div.ondragstart = function (e) {
 				e.dataTransfer.setData("text/plain", "" + this._idx);
 			};
@@ -136,6 +143,71 @@ var CanvasCycle = {
 		var clear = document.createElement("div");
 		clear.className = "clear";
 		pal.appendChild(clear);
+		this.bindPaletteColorPicker();
+	},
+
+	bindPaletteColorPicker: function () {
+		if (this.paletteColorInputEl) return;
+		var picker = document.createElement("input");
+		picker.type = "color";
+		picker.tabIndex = -1;
+		picker.setAttribute("aria-hidden", "true");
+		picker.style.position = "fixed";
+		picker.style.left = "-1000px";
+		picker.style.top = "-1000px";
+		picker.style.opacity = "0";
+		picker.style.pointerEvents = "none";
+		picker.addEventListener("input", function () {
+			CanvasCycle.applyPaletteColorPickerValue(this.value);
+		});
+		document.body.appendChild(picker);
+		this.paletteColorInputEl = picker;
+	},
+
+	openPaletteColorPicker: function (idx) {
+		if (!this.bmp || !this.paletteColorInputEl) return;
+		if (idx < 0 || idx >= this.bmp.palette.baseColors.length) return;
+		var c = this.bmp.palette.baseColors[idx];
+		this.paletteEditColorIdx = idx;
+		this.selectColor(idx);
+		this.paletteColorInputEl.value = this.rgbToHex(c.red, c.green, c.blue);
+		this.paletteColorInputEl.click();
+	},
+
+	applyPaletteColorPickerValue: function (hex) {
+		if (!this.bmp) return;
+		var idx = this.paletteEditColorIdx;
+		if (idx < 0 || idx >= this.bmp.palette.baseColors.length) return;
+		var rgb = this.hexToRgb(hex);
+		if (!rgb) return;
+		var color = this.bmp.palette.baseColors[idx];
+		if (
+			color.red === rgb[0] &&
+			color.green === rgb[1] &&
+			color.blue === rgb[2]
+		)
+			return;
+		color.red = rgb[0];
+		color.green = rgb[1];
+		color.blue = rgb[2];
+		this.renderDirty = true;
+		this.markImageEdited();
+		this.syncUploadedImageData();
+		this.updateColorChip();
+	},
+
+	rgbToHex: function (r, g, b) {
+		var n = (1 << 24) + (r << 16) + (g << 8) + b;
+		return "#" + n.toString(16).slice(1);
+	},
+
+	hexToRgb: function (hex) {
+		if (!hex || !/^#[0-9a-f]{6}$/i.test(hex)) return null;
+		return [
+			parseInt(hex.slice(1, 3), 16),
+			parseInt(hex.slice(3, 5), 16),
+			parseInt(hex.slice(5, 7), 16),
+		];
 	},
 
 	bindUploadControls: function () {
@@ -830,6 +902,11 @@ var CanvasCycle = {
 		this.updatePaletteSelection();
 	},
 
+	selectColor: function (idx) {
+		this.selectedColor = idx;
+		this.updatePaletteSelection();
+	},
+
 	updatePaletteSelection: function () {
 		for (var idx = 0; idx < 256; idx++) {
 			var chip = $("pal_" + idx);
@@ -964,6 +1041,12 @@ var CanvasCycle = {
 			var cidx = parseInt(t.getAttribute("data-cycle"), 10);
 			CanvasCycle.removeCycle(cidx);
 		};
+		container.onfocusin = function (e) {
+			CanvasCycle.syncSelectedColorToCycleField(e.target);
+		};
+		container.oninput = function (e) {
+			CanvasCycle.syncSelectedColorToCycleField(e.target);
+		};
 		container.onchange = function (e) {
 			var t = e.target;
 			if (!t.getAttribute("data-cycle")) return;
@@ -989,7 +1072,18 @@ var CanvasCycle = {
 			CanvasCycle.bmp.optimize();
 			CanvasCycle.markImageEdited();
 			CanvasCycle.syncUploadedImageData();
+			CanvasCycle.syncSelectedColorToCycleField(t);
 		};
+	},
+
+	syncSelectedColorToCycleField: function (field) {
+		if (!field || !this.bmp) return;
+		var key = field.getAttribute("data-key");
+		if (key !== "low" && key !== "high") return;
+		var idx = parseInt(field.value, 10);
+		if (isNaN(idx) || idx < 0 || idx >= this.bmp.palette.baseColors.length)
+			return;
+		this.selectColor(idx);
 	},
 
 	addCycle: function () {
