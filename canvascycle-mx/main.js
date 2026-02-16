@@ -1,5 +1,14 @@
 FrameCount.visible = false;
 
+
+function escapeTextFieldValue(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 var CanvasCycle = {
   cookie: new CookieTree(),
   ctx: null,
@@ -1333,25 +1342,25 @@ var CanvasCycle = {
 
   renderCyclesEditor: function () {
     var container = $("cycles_editor");
-    var header = $("cycles_header");
     container.innerHTML = "";
     if (!this.bmp) return;
-    // header.style.display = this.bmp.palette.cycles.length ? "grid" : "none";
     for (var idx = 0; idx < this.bmp.palette.cycles.length; idx++) {
       var cyc = this.bmp.palette.cycles[idx];
       var row = document.createElement("div");
       row.className = "cycle_row";
+      row.setAttribute("data-cycle", idx);
       if (cyc.reverse === 2) cyc.reverse = 1;
       cyc.reverse = cyc.reverse ? 1 : 0;
+      if (typeof cyc.name !== "string") cyc.name = "";
       row.innerHTML =
+        '<div class="cycle_drag" draggable="true" data-action="drag" data-cycle="' +
+        idx +
+        '" title="Drag to reorder"></div>' +
         '<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' +
         idx +
         '" data-key="active"' +
         (cyc.active === false ? "" : ' checked="checked"') +
         '"></label>' +
-        '<div class="cycle_id">C' +
-        (idx + 1) +
-        "</div>" +
         '<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' +
         idx +
         '" data-key="low" value="' +
@@ -1372,11 +1381,53 @@ var CanvasCycle = {
         '" data-key="reverse"' +
         (cyc.reverse ? ' checked="checked"' : "") +
         "></label>" +
+        '<label class="cycle_field cycle_name"><input type="text" maxlength="32" data-cycle="' +
+        idx +
+        '" data-key="name" value="' +
+        escapeTextFieldValue(cyc.name) +
+        '" placeholder="Cycle name"></label>' +
         '<div class="button cycle_remove" data-action="remove" data-cycle="' +
         idx +
         '">x</div>';
       container.appendChild(row);
     }
+
+    container.ondragstart = function (e) {
+      var t = e.target;
+      if (!t || t.getAttribute("data-action") !== "drag") {
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", t.getAttribute("data-cycle"));
+      var row = t.closest(".cycle_row");
+      if (row) row.classList.add("dragging");
+    };
+
+    container.ondragover = function (e) {
+      if (!container.querySelector(".cycle_row.dragging")) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      CanvasCycle.showCycleDropIndicator(e.clientY);
+    };
+
+    container.ondrop = function (e) {
+      if (!container.querySelector(".cycle_row.dragging")) return;
+      e.preventDefault();
+      var fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
+      var insertIdx = CanvasCycle.getCycleDropInsertIndex(e.clientY);
+      CanvasCycle.clearCycleDropIndicator();
+      CanvasCycle.moveCycleToIndex(fromIdx, insertIdx);
+    };
+
+    container.ondragend = function () {
+      var dragging = container.querySelectorAll(".cycle_row.dragging");
+      for (var i = 0; i < dragging.length; i++) {
+        dragging[i].classList.remove("dragging");
+      }
+      CanvasCycle.clearCycleDropIndicator();
+    };
+
     container.onclick = function (e) {
       var t = e.target;
       if (t.getAttribute("data-action") !== "remove") return;
@@ -1397,7 +1448,18 @@ var CanvasCycle = {
       true,
     );
     container.oninput = function (e) {
-      CanvasCycle.syncSelectedColorToCycleField(e.target);
+      var t = e.target;
+      CanvasCycle.syncSelectedColorToCycleField(t);
+      if (!t.getAttribute || !t.getAttribute("data-cycle")) return;
+      if (t.getAttribute("data-key") !== "name") return;
+      var cidx = parseInt(t.getAttribute("data-cycle"), 10);
+      var cyc = CanvasCycle.bmp.palette.cycles[cidx];
+      if (!cyc) return;
+      var name = (t.value || "").slice(0, 32);
+      if (name !== t.value) t.value = name;
+      cyc.name = name;
+      CanvasCycle.markImageEdited();
+      CanvasCycle.syncUploadedImageData();
     };
     container.onchange = function (e) {
       var t = e.target;
@@ -1405,6 +1467,8 @@ var CanvasCycle = {
       var cidx = parseInt(t.getAttribute("data-cycle"), 10);
       var key = t.getAttribute("data-key");
       var cyc = CanvasCycle.bmp.palette.cycles[cidx];
+      if (!cyc) return;
+      if (key === "name") return;
       var val =
         t.type === "checkbox" ? (t.checked ? 1 : 0) : parseInt(t.value, 10);
       if (key === "active") {
@@ -1434,6 +1498,39 @@ var CanvasCycle = {
     };
   },
 
+  getCycleDropInsertIndex: function (clientY) {
+    var container = $("cycles_editor");
+    var rows = container ? container.querySelectorAll(".cycle_row") : null;
+    if (!rows || !rows.length) return 0;
+    for (var idx = 0; idx < rows.length; idx++) {
+      var rect = rows[idx].getBoundingClientRect();
+      var midpoint = rect.top + rect.height / 2;
+      if (clientY < midpoint) return idx;
+    }
+    return rows.length;
+  },
+
+  showCycleDropIndicator: function (clientY) {
+    var container = $("cycles_editor");
+    if (!container) return;
+    var rows = container.querySelectorAll(".cycle_row");
+    this.clearCycleDropIndicator();
+    if (!rows.length) return;
+    var insertIdx = this.getCycleDropInsertIndex(clientY);
+    if (insertIdx <= 0) rows[0].classList.add("drop-before");
+    else if (insertIdx >= rows.length) rows[rows.length - 1].classList.add("drop-after");
+    else rows[insertIdx].classList.add("drop-before");
+  },
+
+  clearCycleDropIndicator: function () {
+    var container = $("cycles_editor");
+    if (!container) return;
+    var rows = container.querySelectorAll(".cycle_row.drop-before, .cycle_row.drop-after");
+    for (var idx = 0; idx < rows.length; idx++) {
+      rows[idx].classList.remove("drop-before", "drop-after");
+    }
+  },
+
   syncSelectedColorToCycleField: function (field) {
     if (!field || !this.bmp) return;
     var key = field.getAttribute("data-key");
@@ -1452,26 +1549,32 @@ var CanvasCycle = {
     this.updateHighlightColor();
   },
 
-  clearSelectedColorFromCycleFieldBlur: function (evt) {
-    if (!evt || !this.bmp) return;
-    var field = evt.target;
-    if (!field || !field.getAttribute) return;
-    var key = field.getAttribute("data-key");
-    if (key !== "low" && key !== "high") return;
-    var next = evt.relatedTarget;
-    if (next && next.getAttribute) {
-      var nextKey = next.getAttribute("data-key");
-      if (nextKey === "low" || nextKey === "high") return;
-    }
+  clearCycleFieldColorSelection: function () {
     this.selectedColor = -1;
     this.keyboardHighlightColor = -1;
     this.updateHighlightColor();
     this.updatePaletteSelection();
   },
 
+  clearSelectedColorFromCycleFieldBlur: function (evt) {
+    if (!evt || !this.bmp) return;
+    var field = evt.target;
+    if (!field || !field.getAttribute) return;
+    var key = field.getAttribute("data-key");
+    if (key !== "low" && key !== "high") return;
+    setTimeout(function () {
+      var active = document.activeElement;
+      if (active && active.getAttribute) {
+        var activeKey = active.getAttribute("data-key");
+        if (activeKey === "low" || activeKey === "high") return;
+      }
+      CanvasCycle.clearCycleFieldColorSelection();
+    }, 0);
+  },
+
   addCycle: function () {
     if (!this.bmp) return;
-    this.bmp.palette.cycles.push(new Cycle(280, 0, 0, 0, true));
+    this.bmp.palette.cycles.push(new Cycle(280, 0, 0, 0, true, ""));
     this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
     this.bmp.optimize();
     this.markImageEdited();
@@ -1509,6 +1612,7 @@ var CanvasCycle = {
           rate: c.rate,
           reverse: c.reverse ? 1 : 0,
           active: c.active !== false,
+          name: typeof c.name === "string" ? c.name.slice(0, 32) : "",
         };
       }),
     };
@@ -1522,6 +1626,22 @@ var CanvasCycle = {
       this.uploadedImageData.colors = payload.colors;
       this.uploadedImageData.cycles = payload.cycles;
     }
+  },
+
+  moveCycleToIndex: function (fromIdx, insertIdx) {
+    var cycles = this.bmp && this.bmp.palette ? this.bmp.palette.cycles : null;
+    if (!cycles || isNaN(fromIdx) || isNaN(insertIdx)) return;
+    if (fromIdx < 0 || fromIdx >= cycles.length) return;
+    insertIdx = Math.max(0, Math.min(cycles.length, insertIdx));
+    if (fromIdx < insertIdx) insertIdx--;
+    if (insertIdx === fromIdx) return;
+    var moved = cycles.splice(fromIdx, 1)[0];
+    cycles.splice(insertIdx, 0, moved);
+    this.bmp.palette.numCycles = cycles.length;
+    this.markImageEdited();
+    this.renderCyclesEditor();
+    this.renderDirty = true;
+    this.syncUploadedImageData();
   },
 
   reorderPalette: function (fromIdx, toIdx) {
@@ -1702,6 +1822,7 @@ var CanvasCycle = {
           rate: c.rate,
           reverse: c.reverse ? 1 : 0,
           active: c.active !== false,
+          name: typeof c.name === "string" ? c.name.slice(0, 32) : "",
         };
       }),
     };
@@ -1721,7 +1842,7 @@ var CanvasCycle = {
 
   buildEmbedScript: function (payload) {
     var runtime =
-      "function m(v,n,x){var z=Number(v);return Number.isNaN(z)?n:Math.max(n,Math.min(x,z))}function n(i){return{filename:i.filename||'untitled.json',width:i.width,height:i.height,pixels:i.pixels instanceof Uint8Array?i.pixels:Uint8Array.from(i.pixels||[]),colors:(i.colors||[]).map(function(c){return[c[0],c[1],c[2]]}),cycles:(i.cycles||[]).map(function(c){return{low:m(c.low,0,255),high:m(c.high,0,255),rate:Number(c.rate)||0,reverse:(Number(c.reverse)===2||Number(c.reverse)===1)?1:0,active:c.active!==false}})}}function g(b,y,t){var o=b.map(function(c){return[c[0],c[1],c[2]]});for(var i=0;i<y.length;i++){var c=y[i];if(!c||c.active===false||!c.rate)continue;var l=Math.max(0,c.low|0),h=Math.min(255,c.high|0);if(h<=l)continue;var s=h-l+1,a=Math.floor((t/(1000/(c.rate/280)))%s),r=c.reverse===1?(s-a)%s:a;if(!r)continue;var q=o.slice(l,h+1);for(var j=0;j<s;j++)o[l+((j+r)%s)]=q[j]}return o}function P(cv){this.canvas=cv;this.ctx=cv.getContext('2d');this.imageData=null;this.data=null;this.paused=false;this.raf=0;this.lastDraw=0;this.targetFps=60;this.loop=this.loop.bind(this)}P.prototype.loadFromData=function(d){this.data=n(d);this.canvas.width=this.data.width;this.canvas.height=this.data.height;this.imageData=this.ctx.createImageData(this.data.width,this.data.height);this.lastDraw=performance.now();if(!this.raf)this.raf=requestAnimationFrame(this.loop)};P.prototype.loop=function(now){if(this.data&&!this.paused){var min=1000/this.targetFps;if(now-this.lastDraw>=min){this.render(now);this.lastDraw=now}}this.raf=requestAnimationFrame(this.loop)};P.prototype.render=function(now){var colors=g(this.data.colors,this.data.cycles,now),src=this.data.pixels,dst=this.imageData.data;for(var i=0;i<src.length;i++){var c=colors[src[i]]||[0,0,0],di=i*4;dst[di]=c[0];dst[di+1]=c[1];dst[di+2]=c[2];dst[di+3]=255}this.ctx.putImageData(this.imageData,0,0)};";
+      "function m(v,n,x){var z=Number(v);return Number.isNaN(z)?n:Math.max(n,Math.min(x,z))}function n(i){return{filename:i.filename||'untitled.json',width:i.width,height:i.height,pixels:i.pixels instanceof Uint8Array?i.pixels:Uint8Array.from(i.pixels||[]),colors:(i.colors||[]).map(function(c){return[c[0],c[1],c[2]]}),cycles:(i.cycles||[]).map(function(c){return{low:m(c.low,0,255),high:m(c.high,0,255),rate:Number(c.rate)||0,reverse:(Number(c.reverse)===2||Number(c.reverse)===1)?1:0,active:c.active!==false,name:typeof c.name==='string'?c.name.slice(0,32):''}})}}function g(b,y,t){var o=b.map(function(c){return[c[0],c[1],c[2]]});for(var i=0;i<y.length;i++){var c=y[i];if(!c||c.active===false||!c.rate)continue;var l=Math.max(0,c.low|0),h=Math.min(255,c.high|0);if(h<=l)continue;var s=h-l+1,a=Math.floor((t/(1000/(c.rate/280)))%s),r=c.reverse===1?(s-a)%s:a;if(!r)continue;var q=o.slice(l,h+1);for(var j=0;j<s;j++)o[l+((j+r)%s)]=q[j]}return o}function P(cv){this.canvas=cv;this.ctx=cv.getContext('2d');this.imageData=null;this.data=null;this.paused=false;this.raf=0;this.lastDraw=0;this.targetFps=60;this.loop=this.loop.bind(this)}P.prototype.loadFromData=function(d){this.data=n(d);this.canvas.width=this.data.width;this.canvas.height=this.data.height;this.imageData=this.ctx.createImageData(this.data.width,this.data.height);this.lastDraw=performance.now();if(!this.raf)this.raf=requestAnimationFrame(this.loop)};P.prototype.loop=function(now){if(this.data&&!this.paused){var min=1000/this.targetFps;if(now-this.lastDraw>=min){this.render(now);this.lastDraw=now}}this.raf=requestAnimationFrame(this.loop)};P.prototype.render=function(now){var colors=g(this.data.colors,this.data.cycles,now),src=this.data.pixels,dst=this.imageData.data;for(var i=0;i<src.length;i++){var c=colors[src[i]]||[0,0,0],di=i*4;dst[di]=c[0];dst[di+1]=c[1];dst[di+2]=c[2];dst[di+3]=255}this.ctx.putImageData(this.imageData,0,0)};";
     return (
       '(function(){"use strict";' +
       runtime +
