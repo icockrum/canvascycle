@@ -105,18 +105,21 @@
 					<!-- <div class="label">CYCLES:</div> -->
 					<div id="cycles_header" class="cycle_header">
 						<div class="cycle_col"></div>
-						<div
-							id="add_cycle"
-							class="button left right"
-							onClick="CC.addCycle()"
-						>
-							+
+						<div class="cycle_col"></div>
+						<div class="cycle_col" title="Lowest palette index in cycle range">Low</div>
+						<div class="cycle_col" title="Highest palette index in cycle range">High</div>
+						<div class="cycle_col" title="Cycle speed (280 = normal)">Rate</div>
+						<div class="cycle_col" title="Reverse cycle direction">↩</div>
+						<div class="cycle_col cycle_name_header" title="Optional cycle label (max 32 chars)">Name</div>
+						<div class="cycle_col cycle_add_header">
+							<div
+								id="add_cycle"
+								class="button left right"
+								onClick="CC.addCycle()"
+							>
+								+
+							</div>
 						</div>
-						<!-- <div class="cycle_id"></div> -->
-						<div class="cycle_col">Low</div>
-						<div class="cycle_col">High</div>
-						<div class="cycle_col">Rate</div>
-						<div class="cycle_col">Reverse</div>
 					</div>
 					<div id="cycles_editor"></div>
 					<!-- <div id="cycles_toolbar">

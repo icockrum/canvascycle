@@ -302,12 +302,13 @@ div#d_debug .fps {
 	overflow: auto;
 	/* border-bottom: 1px solid var(--line); */
 	flex: 1;
+	position: relative;
 }
 .cycle_header,
 .cycle_row {
 	display: grid;
-	grid-template-columns: 1rem 1rem 5rem 5rem 4rem 4rem 2rem;
-	column-gap: 1rem;
+	grid-template-columns: 14px 18px minmax(0, 3.75rem) minmax(0, 3.75rem) minmax(0, 3.5rem) 1.25rem minmax(7rem, 1fr) 2rem;
+	column-gap: 2px;
 	align-items: center;
 	margin-bottom: 2px;
 	justify-items: center;
@@ -316,9 +317,40 @@ div#d_debug .fps {
 	text-transform: uppercase;
 	font-size: 10px;
 	font-weight: bold;
-	margin-bottom: 10px;
+	margin-bottom: 8px;
 	color: var(--accent);
 	position: relative;
+}
+.cycle_name_header {
+	width: 100%;
+	text-align: left;
+}
+.cycle_add_header {
+	width: 100%;
+	display: flex;
+	justify-content: flex-end;
+}
+.cycle_row {
+	position: relative;
+}
+.cycle_row.drop-before::before,
+.cycle_row.drop-after::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	height: 1px;
+	background: var(--accent);
+	pointer-events: none;
+}
+.cycle_row.drop-before::before {
+	top: -1px;
+}
+.cycle_row.drop-after::after {
+	bottom: -1px;
+}
+.cycle_row .cycle_field {
+	width: 100%;
 }
 .cycle_row input,
 .cycle_row select {
@@ -332,6 +364,32 @@ div#d_debug .fps {
 	width: auto;
 	accent-color: var(--accent);
 }
+.cycle_drag {
+	width: 100%;
+	height: 16px;
+	cursor: grab;
+	position: relative;
+	margin-right: 6px;
+}
+.cycle_drag::before {
+	content: "";
+	position: absolute;
+	top: 1px;
+	bottom: 1px;
+	left: 2px;
+	width: 18px;
+	background: repeating-linear-gradient(
+		to bottom,
+		var(--muted) 0,
+		var(--muted) 1px,
+		transparent 1px,
+		transparent 3px
+	);
+	opacity: 0.85;
+}
+.cycle_row.dragging {
+	opacity: 0.5;
+}
 .cycle_remove,
 #add_cycle {
 	width: 20px;
@@ -339,6 +397,10 @@ div#d_debug .fps {
 	padding: 1px 0;
 	justify-self: start;
 	border-radius: 0;
+}
+.cycle_remove {
+	margin-left: 0.5rem;
+	justify-self: end;
 }
 .cycle_remove:hover,
 #add_cycle:hover {
@@ -348,6 +410,7 @@ div#d_debug .fps {
 #add_cycle {
 	font-size: 12px;
 	padding: 1px 0px 2px 0px;
+	justify-self: end;
 }
 .tool-palette {
 	position: absolute;
