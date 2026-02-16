@@ -89,6 +89,7 @@ var CanvasCycle = {
     this.bindKeyboardNavigation();
     this.bindUploadControls();
     this.bindMenus();
+    this.bindHelpTabs();
     this.applyAppName();
     this.bindCanvasTools();
     this.bindPaletteDragging();
@@ -449,11 +450,39 @@ var CanvasCycle = {
   },
 
   showHelpModal: function () {
+    this.selectHelpTab("shortcuts");
     $("help_modal").setClass("hidden", false);
   },
 
   closeHelpModal: function () {
     $("help_modal").setClass("hidden", true);
+  },
+
+  bindHelpTabs: function () {
+    var tabs = document.querySelectorAll(".help-tab");
+    tabs.forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        var key = tab.getAttribute("data-help-tab");
+        CanvasCycle.selectHelpTab(key);
+      });
+    });
+  },
+
+  selectHelpTab: function (key) {
+    if (!key) return;
+    var tabs = document.querySelectorAll(".help-tab");
+    var panels = document.querySelectorAll(".help-panel");
+
+    tabs.forEach(function (tab) {
+      var isActive = tab.getAttribute("data-help-tab") === key;
+      tab.classList.toggle("active", isActive);
+      tab.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+
+    panels.forEach(function (panel) {
+      var isActive = panel.getAttribute("data-help-panel") === key;
+      panel.classList.toggle("hidden", !isActive);
+    });
   },
 
   bindCanvasTools: function () {
