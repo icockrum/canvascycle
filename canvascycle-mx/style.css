@@ -36,6 +36,10 @@ body {
 	color: var(--text);
 	font-family: Inter, system-ui, sans-serif;
 	font-size: 12px;
+
+	width: 100vw;
+	height: 100vh;
+	overflow: hidden;
 }
 #top_menubar {
 	height: 40px;
@@ -517,15 +521,22 @@ div#d_debug .fps {
 	/* width: min(760px, calc(100vw - 40px)); */
 	width: min(600px, calc(100vw - 40px));
 	max-height: min(80vh, 700px);
-	min-height: calc(80vh - 40px);
 	display: flex;
 	flex-direction: column;
+}
+#help_modal .modal-card-scrollable {
+	min-height: calc(80vh - 40px);
 }
 .modal-scroll-area {
 	overflow: auto;
 	padding-right: 8px;
 }
-
+#about_logo_container {
+	text-align: center;
+}
+#about_logo {
+	width: 300px;
+}
 .help-tabs {
 	display: flex;
 	flex-wrap: wrap;
@@ -548,10 +559,10 @@ div#d_debug .fps {
 	cursor: pointer;
 }
 .help-tab:first-of-type {
-    border-radius: 6px 0 0 6px;
+	border-radius: 6px 0 0 6px;
 }
 .help-tab:last-of-type {
-    border-radius: 0 6px 6px 0;
+	border-radius: 0 6px 6px 0;
 }
 .help-tab:hover,
 .help-tab:focus-visible {
@@ -567,7 +578,7 @@ div#d_debug .fps {
 	margin-bottom: 8px;
 }
 section.help-panel.hidden {
-    display: none;
+	display: none;
 }
 .help-content h3 {
 	margin: 14px 0 8px;
@@ -580,7 +591,7 @@ section.help-panel.hidden {
 .help-content p {
 	max-width: 600px;
 }
-.help-content a {
+.modal a {
 	color: var(--link);
 }
 .help-content a:hover,
@@ -599,7 +610,7 @@ a.button {
 a.button:hover {
 	color: white;
 	/* background-color: var(--accent); */
-	background-color: var(--menuhover);	
+	background-color: var(--menuhover);
 }
 .help-tool-list {
 	display: flex;
