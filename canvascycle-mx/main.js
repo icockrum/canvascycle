@@ -475,13 +475,13 @@ var CanvasCycle = {
 
     tabs.forEach(function (tab) {
       var isActive = tab.getAttribute("data-help-tab") === key;
-      tab.setClass("active", isActive);
+      tab.classList.toggle("active", isActive);
       tab.setAttribute("aria-selected", isActive ? "true" : "false");
     });
 
     panels.forEach(function (panel) {
       var isActive = panel.getAttribute("data-help-panel") === key;
-      panel.setClass("hidden", !isActive);
+      panel.classList.toggle("hidden", !isActive);
     });
   },
 
