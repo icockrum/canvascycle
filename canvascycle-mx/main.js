@@ -509,15 +509,17 @@ var CanvasCycle = {
       CanvasCycle.eyedropperHoverColor = -1;
       CanvasCycle.updateHighlightColor();
     });
-    window.addEventListener("mouseup", function () {
+    window.addEventListener("mouseup", function (e) {
+      CanvasCycle.finishZoomDrag(e);
       CanvasCycle.dragging = false;
       CanvasCycle.isPointerDown = false;
-      CanvasCycle.zoomDrag = null;
       if (CanvasCycle.activeTool !== "eyedropper") {
         CanvasCycle.eyedropperHoverColor = -1;
         CanvasCycle.updateHighlightColor();
       }
-      CanvasCycle.updateCanvasCursor();
+      CanvasCycle.updateCanvasCursor(
+        CanvasCycle.altKeyDown || CanvasCycle.forceZoomOutCursor,
+      );
     });
   },
 
@@ -1921,6 +1923,7 @@ var CanvasCycle = {
     this.zoomDrag = {
       startClientX: e.clientX,
       startZoom: this.view.zoom,
+      didDrag: false,
       pixelX: pixel.x,
       pixelY: pixel.y,
       anchorCanvasX: e.clientX - rect.left,
@@ -1932,6 +1935,7 @@ var CanvasCycle = {
   updateZoomDrag: function (e) {
     if (!this.zoomDrag) return;
     var deltaX = e.clientX - this.zoomDrag.startClientX;
+    if (Math.abs(deltaX) >= 3) this.zoomDrag.didDrag = true;
     var nextZoom = this.zoomDrag.startZoom + deltaX * 0.01;
     nextZoom = Math.max(
       this.view.minZoom,
@@ -1944,6 +1948,35 @@ var CanvasCycle = {
       this.zoomDrag.anchorCanvasX - this.zoomDrag.pixelX * nextZoom;
     this.view.offsetY =
       this.zoomDrag.anchorCanvasY - this.zoomDrag.pixelY * nextZoom;
+    this.updateStatusBar();
+  },
+
+  finishZoomDrag: function (e) {
+    if (!this.zoomDrag) return;
+    var drag = this.zoomDrag;
+    this.zoomDrag = null;
+    if (drag.didDrag) return;
+    var wantsZoomOut = !!(e && e.altKey);
+    var factor = wantsZoomOut ? 0.5 : 2;
+    var nextZoom = this.clampZoom(this.view.zoom * factor);
+    if (nextZoom === this.view.zoom) return;
+    this.applyZoomAtAnchor(
+      nextZoom,
+      drag.pixelX,
+      drag.pixelY,
+      drag.anchorCanvasX,
+      drag.anchorCanvasY,
+    );
+  },
+
+  clampZoom: function (value) {
+    return Math.max(this.view.minZoom, Math.min(this.view.maxZoom, value));
+  },
+
+  applyZoomAtAnchor: function (nextZoom, pixelX, pixelY, anchorCanvasX, anchorCanvasY) {
+    this.view.zoom = nextZoom;
+    this.view.offsetX = anchorCanvasX - pixelX * nextZoom;
+    this.view.offsetY = anchorCanvasY - pixelY * nextZoom;
     this.updateStatusBar();
   },
 
