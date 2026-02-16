@@ -1348,12 +1348,14 @@ var CanvasCycle = {
       var cyc = this.bmp.palette.cycles[idx];
       var row = document.createElement("div");
       row.className = "cycle_row";
-      row.draggable = true;
       row.setAttribute("data-cycle", idx);
       if (cyc.reverse === 2) cyc.reverse = 1;
       cyc.reverse = cyc.reverse ? 1 : 0;
       if (typeof cyc.name !== "string") cyc.name = "";
       row.innerHTML =
+        '<div class="cycle_drag" draggable="true" data-action="drag" data-cycle="' +
+        idx +
+        '" title="Drag to reorder"></div>' +
         '<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' +
         idx +
         '" data-key="active"' +
@@ -1379,6 +1381,11 @@ var CanvasCycle = {
         '" data-key="reverse"' +
         (cyc.reverse ? ' checked="checked"' : "") +
         "></label>" +
+        '<label class="cycle_field cycle_name"><input type="text" maxlength="32" data-cycle="' +
+        idx +
+        '" data-key="name" value="' +
+        escapeTextFieldValue(cyc.name) +
+        '" placeholder="Cycle name"></label>' +
         '<div class="button cycle_remove" data-action="remove" data-cycle="' +
         idx +
         '">x</div>' +
@@ -1412,6 +1419,43 @@ var CanvasCycle = {
       };
       container.appendChild(row);
     }
+
+    container.ondragstart = function (e) {
+      var t = e.target;
+      if (!t || t.getAttribute("data-action") !== "drag") {
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", t.getAttribute("data-cycle"));
+      var row = t.closest(".cycle_row");
+      if (row) row.classList.add("dragging");
+    };
+
+    container.ondragover = function (e) {
+      if (!container.querySelector(".cycle_row.dragging")) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      CanvasCycle.showCycleDropIndicator(e.clientY);
+    };
+
+    container.ondrop = function (e) {
+      if (!container.querySelector(".cycle_row.dragging")) return;
+      e.preventDefault();
+      var fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
+      var insertIdx = CanvasCycle.getCycleDropInsertIndex(e.clientY);
+      CanvasCycle.clearCycleDropIndicator();
+      CanvasCycle.moveCycleToIndex(fromIdx, insertIdx);
+    };
+
+    container.ondragend = function () {
+      var dragging = container.querySelectorAll(".cycle_row.dragging");
+      for (var i = 0; i < dragging.length; i++) {
+        dragging[i].classList.remove("dragging");
+      }
+      CanvasCycle.clearCycleDropIndicator();
+    };
+
     container.onclick = function (e) {
       var t = e.target;
       if (t.getAttribute("data-action") !== "remove") return;
@@ -1482,6 +1526,39 @@ var CanvasCycle = {
     };
   },
 
+  getCycleDropInsertIndex: function (clientY) {
+    var container = $("cycles_editor");
+    var rows = container ? container.querySelectorAll(".cycle_row") : null;
+    if (!rows || !rows.length) return 0;
+    for (var idx = 0; idx < rows.length; idx++) {
+      var rect = rows[idx].getBoundingClientRect();
+      var midpoint = rect.top + rect.height / 2;
+      if (clientY < midpoint) return idx;
+    }
+    return rows.length;
+  },
+
+  showCycleDropIndicator: function (clientY) {
+    var container = $("cycles_editor");
+    if (!container) return;
+    var rows = container.querySelectorAll(".cycle_row");
+    this.clearCycleDropIndicator();
+    if (!rows.length) return;
+    var insertIdx = this.getCycleDropInsertIndex(clientY);
+    if (insertIdx <= 0) rows[0].classList.add("drop-before");
+    else if (insertIdx >= rows.length) rows[rows.length - 1].classList.add("drop-after");
+    else rows[insertIdx].classList.add("drop-before");
+  },
+
+  clearCycleDropIndicator: function () {
+    var container = $("cycles_editor");
+    if (!container) return;
+    var rows = container.querySelectorAll(".cycle_row.drop-before, .cycle_row.drop-after");
+    for (var idx = 0; idx < rows.length; idx++) {
+      rows[idx].classList.remove("drop-before", "drop-after");
+    }
+  },
+
   syncSelectedColorToCycleField: function (field) {
     if (!field || !this.bmp) return;
     var key = field.getAttribute("data-key");
@@ -1500,21 +1577,27 @@ var CanvasCycle = {
     this.updateHighlightColor();
   },
 
+  clearCycleFieldColorSelection: function () {
+    this.selectedColor = -1;
+    this.keyboardHighlightColor = -1;
+    this.updateHighlightColor();
+    this.updatePaletteSelection();
+  },
+
   clearSelectedColorFromCycleFieldBlur: function (evt) {
     if (!evt || !this.bmp) return;
     var field = evt.target;
     if (!field || !field.getAttribute) return;
     var key = field.getAttribute("data-key");
     if (key !== "low" && key !== "high") return;
-    var next = evt.relatedTarget;
-    if (next && next.getAttribute) {
-      var nextKey = next.getAttribute("data-key");
-      if (nextKey === "low" || nextKey === "high") return;
-    }
-    this.selectedColor = -1;
-    this.keyboardHighlightColor = -1;
-    this.updateHighlightColor();
-    this.updatePaletteSelection();
+    setTimeout(function () {
+      var active = document.activeElement;
+      if (active && active.getAttribute) {
+        var activeKey = active.getAttribute("data-key");
+        if (activeKey === "low" || activeKey === "high") return;
+      }
+      CanvasCycle.clearCycleFieldColorSelection();
+    }, 0);
   },
 
   addCycle: function () {
@@ -1573,13 +1656,15 @@ var CanvasCycle = {
     }
   },
 
-  reorderCycles: function (fromIdx, toIdx) {
+  moveCycleToIndex: function (fromIdx, insertIdx) {
     var cycles = this.bmp && this.bmp.palette ? this.bmp.palette.cycles : null;
-    if (!cycles || fromIdx === toIdx || isNaN(fromIdx) || isNaN(toIdx)) return;
-    if (fromIdx < 0 || toIdx < 0 || fromIdx >= cycles.length || toIdx >= cycles.length)
-      return;
+    if (!cycles || isNaN(fromIdx) || isNaN(insertIdx)) return;
+    if (fromIdx < 0 || fromIdx >= cycles.length) return;
+    insertIdx = Math.max(0, Math.min(cycles.length, insertIdx));
+    if (fromIdx < insertIdx) insertIdx--;
+    if (insertIdx === fromIdx) return;
     var moved = cycles.splice(fromIdx, 1)[0];
-    cycles.splice(toIdx, 0, moved);
+    cycles.splice(insertIdx, 0, moved);
     this.bmp.palette.numCycles = cycles.length;
     this.markImageEdited();
     this.renderCyclesEditor();
