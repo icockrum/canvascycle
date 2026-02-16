@@ -44,3 +44,7 @@ Then include it anywhere in HTML (no manual init call required):
 Each embed file is isolated, so you can include multiple different animations on the same page by adding multiple `<script>` tags.
 
 In the editor UI, both **Export JSON** and **Export Standalone** now download minimized files (compact single-line output with no extra whitespace).
+## Layering design note
+
+If you are evaluating non-destructive layers and file-size tradeoffs, see `LAYER_STORAGE_NOTES.md`.
+
