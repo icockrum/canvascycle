@@ -61,6 +61,7 @@ var CanvasCycle = {
 	forceZoomOutCursor: false,
 	zoomDrag: null,
 	cycleTimeOffset: 0,
+	cycleFieldBlurTimer: null,
 	pendingPaletteSortMode: "",
 	paletteEditColorIdx: -1,
 	paletteColorInputEl: null,
@@ -1457,10 +1458,14 @@ var CanvasCycle = {
 			CanvasCycle.removeCycle(cidx);
 		};
 		container.onfocusin = function (e) {
+			if (CanvasCycle.cycleFieldBlurTimer) {
+				clearTimeout(CanvasCycle.cycleFieldBlurTimer);
+				CanvasCycle.cycleFieldBlurTimer = null;
+			}
 			CanvasCycle.syncSelectedColorToCycleField(e.target);
 		};
 		container.onfocusout = function (e) {
-			CanvasCycle.clearSelectedColorFromCycleFieldBlur(e);
+			CanvasCycle.queueCycleFieldColorSelectionClear(e);
 		};
 		container.oninput = function (e) {
 			var t = e.target;
@@ -1577,18 +1582,29 @@ var CanvasCycle = {
 		this.updatePaletteSelection();
 	},
 
-	clearSelectedColorFromCycleFieldBlur: function (evt) {
+	queueCycleFieldColorSelectionClear: function (evt) {
 		if (!evt || !this.bmp) return;
 		var field = evt.target;
 		if (!field || !field.getAttribute) return;
 		var key = field.getAttribute("data-key");
 		if (key !== "low" && key !== "high") return;
-		var next = evt.relatedTarget;
-		if (next && next.getAttribute) {
-			var nextKey = next.getAttribute("data-key");
-			if (nextKey === "low" || nextKey === "high") return;
-		}
-		this.clearCycleFieldColorSelection();
+		if (this.cycleFieldBlurTimer) clearTimeout(this.cycleFieldBlurTimer);
+		this.cycleFieldBlurTimer = setTimeout(function () {
+			CanvasCycle.cycleFieldBlurTimer = null;
+			var active = document.activeElement;
+			if (!active || !active.getAttribute) {
+				CanvasCycle.clearCycleFieldColorSelection();
+				return;
+			}
+			var activeKey = active.getAttribute("data-key");
+			if (
+				(activeKey === "low" || activeKey === "high") &&
+				active.closest &&
+				active.closest("#cycles_editor")
+			)
+				return;
+			CanvasCycle.clearCycleFieldColorSelection();
+		}, 0);
 	},
 
 	addCycle: function () {
