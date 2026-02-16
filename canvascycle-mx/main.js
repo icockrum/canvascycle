@@ -1412,6 +1412,19 @@ var CanvasCycle = {
 				var toIdx = parseInt(this.getAttribute("data-cycle"), 10);
 				CanvasCycle.reorderCycles(fromIdx, toIdx);
 			};
+
+			var cycleRangeFields = row.querySelectorAll(
+				'input[data-key="low"], input[data-key="high"]',
+			);
+			for (var fieldIdx = 0; fieldIdx < cycleRangeFields.length; fieldIdx++) {
+				cycleRangeFields[fieldIdx].onfocus = function () {
+					CanvasCycle.handleCycleRangeFieldFocus(this);
+				};
+				cycleRangeFields[fieldIdx].onblur = function (e) {
+					CanvasCycle.handleCycleRangeFieldBlur(e);
+				};
+			}
+
 			container.appendChild(row);
 		}
 
@@ -1456,16 +1469,6 @@ var CanvasCycle = {
 			if (t.getAttribute("data-action") !== "remove") return;
 			var cidx = parseInt(t.getAttribute("data-cycle"), 10);
 			CanvasCycle.removeCycle(cidx);
-		};
-		container.onfocusin = function (e) {
-			if (CanvasCycle.cycleFieldBlurTimer) {
-				clearTimeout(CanvasCycle.cycleFieldBlurTimer);
-				CanvasCycle.cycleFieldBlurTimer = null;
-			}
-			CanvasCycle.syncSelectedColorToCycleField(e.target);
-		};
-		container.onfocusout = function (e) {
-			CanvasCycle.queueCycleFieldColorSelectionClear(e);
 		};
 		container.oninput = function (e) {
 			var t = e.target;
@@ -1580,6 +1583,18 @@ var CanvasCycle = {
 		this.keyboardHighlightColor = -1;
 		this.updateHighlightColor();
 		this.updatePaletteSelection();
+	},
+
+	handleCycleRangeFieldFocus: function (field) {
+		if (this.cycleFieldBlurTimer) {
+			clearTimeout(this.cycleFieldBlurTimer);
+			this.cycleFieldBlurTimer = null;
+		}
+		this.syncSelectedColorToCycleField(field);
+	},
+
+	handleCycleRangeFieldBlur: function (evt) {
+		this.queueCycleFieldColorSelectionClear(evt);
 	},
 
 	queueCycleFieldColorSelectionClear: function (evt) {
