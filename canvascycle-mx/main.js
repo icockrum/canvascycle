@@ -296,6 +296,8 @@ var CanvasCycle = {
     var uploadJSONItem = $("menu_upload_json");
     var exportJSONItem = $("menu_export_json");
     var exportEmbedItem = $("menu_export_embed");
+    var downloadPlayerItem = $("menu_download_player");
+    var viewExampleItem = $("menu_view_example");
     var undoItem = $("menu_undo");
 
     appTrigger.addEventListener("click", function (e) {
@@ -352,6 +354,15 @@ var CanvasCycle = {
       CanvasCycle.downloadCurrentEmbed();
       CanvasCycle.closeMenus();
     });
+    viewExampleItem.addEventListener("click", function () {
+      CanvasCycle.closeMenus();
+      window.open("/Cycle8Player/index.html", "_blank");
+    });
+    downloadPlayerItem.addEventListener("click", function () {
+      CanvasCycle.downloadPlayer();
+      CanvasCycle.closeMenus();
+    });
+
     aboutItem.addEventListener("click", function () {
       CanvasCycle.showAboutModal();
       CanvasCycle.closeMenus();
@@ -1735,8 +1746,24 @@ var CanvasCycle = {
       /\.json$/i,
       "",
     );
-    this.downloadBlob(script, "text/javascript", base + ".embed.js");
+    this.downloadBlob(script, "text/javascript", base + ".js");
     this.uploadedImageData = payload;
+  },
+
+  downloadPlayer: async function () {
+    const response = await fetch("public/Cycle8Player.zip");
+    const blob = await response.blob();
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Cycle8Player.js";
+    document.body.appendChild(a);
+    a.click();
+
+    URL.revokeObjectURL(url);
+    a.remove();
   },
 
   showLoading: function () {

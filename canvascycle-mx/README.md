@@ -21,9 +21,9 @@ Serve the repository with any static web server and open:
 
 `/canvascycle-mx/index.html`
 
-Standalone player demo page:
+Cycle8Player demo page:
 
-`/canvascycle-mx/public/player/standalone.html`
+`/canvascycle-mx/public/Cycle8Player/Cycle8Player.html`
 
 ## Single-file self-running embeds
 
@@ -32,15 +32,15 @@ You can now generate a single JavaScript file that contains both the player runt
 Generate an embed script:
 
 ```bash
-npm run wrap-player -- canvascycle-mx/public/images/TESTRAMP.json public/player/testramp-embed.js
+npm run wrap-player -- canvascycle-mx/public/images/TESTRAMP.json public/Cycle8Player/testramp-embed.js
 ```
 
 Then include it anywhere in HTML (no manual init call required):
 
 ```html
-<script src="/public/player/testramp-embed.js"></script>
+<script src="/public/Cycle8Player/testramp-embed.js"></script>
 ```
 
 Each embed file is isolated, so you can include multiple different animations on the same page by adding multiple `<script>` tags.
 
-In the editor UI, both **Export JSON** and **Export Embed** now download minimized files (compact single-line output with no extra whitespace).
+In the editor UI, both **Export JSON** and **Export Standalone** now download minimized files (compact single-line output with no extra whitespace).

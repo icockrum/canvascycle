@@ -156,6 +156,9 @@ body {
 	gap: var(--container-pad);
 	padding: var(--container-pad);
 	align-items: flex-start;
+
+	width: min-content;
+	margin: 0 auto;
 }
 #image-column {
 	height: calc(100dvh - var(--menuheight) - var(--container-pad));
@@ -343,7 +346,7 @@ div#d_debug .fps {
 	padding: 1px 0px 2px 0px;
 }
 .tool-palette {
-	position: fixed;
+	position: absolute;
 	background: var(--panel);
 	border: 1px solid var(--line);
 	border-radius: 2px;
@@ -584,6 +587,20 @@ section.help-panel.hidden {
 .help-content a:focus-visible {
 	color: var(--link-hover);
 }
+.example {
+	margin-top: 4px;
+}
+a.button {
+	color: white;
+	background-color: var(--accent);
+	/* background-color: var(--menuhover);	 */
+	text-decoration: none;
+}
+a.button:hover {
+	color: white;
+	/* background-color: var(--accent); */
+	background-color: var(--menuhover);	
+}
 .help-tool-list {
 	display: flex;
 	flex-direction: column;
@@ -598,6 +615,7 @@ section.help-panel.hidden {
 	border: 1px solid var(--line);
 	border-radius: 8px;
 	padding: 8px;
+	position: relative;
 }
 .help-tool-row p {
 	margin: 3px 0 0;
@@ -609,6 +627,7 @@ section.help-panel.hidden {
 	font-size: 18px;
 	line-height: 1;
 	min-height: 28px;
+	/* flex-direction: column; */
 }
 .help-mini-btn {
 	display: inline-flex;

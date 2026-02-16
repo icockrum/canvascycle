@@ -1,78 +1,79 @@
-import './style.css';
-import UPNG from './vendor/upng.js';
-import { CanvasCyclePlayer, normalizeData } from './player-core.js';
+import "./style.css";
+import UPNG from "./vendor/upng.js";
+import { Cycle8Player, normalizeData } from "./Cycle8Player.js";
 
-const sampleNames = ['desert', 'skullsorted', 'unpixellatedskull'];
+const sampleNames = ["desert", "skullsorted", "unpixellatedskull"];
 
 const els = {
-  viewer: document.querySelector('#viewer'),
-  sampleSelect: document.querySelector('#sampleSelect'),
-  prevBtn: document.querySelector('#prevBtn'),
-  nextBtn: document.querySelector('#nextBtn'),
-  resumeUploadedBtn: document.querySelector('#resumeUploadedBtn'),
-  pauseBtn: document.querySelector('#pauseBtn'),
-  downloadBtn: document.querySelector('#downloadBtn'),
-  pngUpload: document.querySelector('#pngUpload'),
-  jsonUpload: document.querySelector('#jsonUpload'),
-  palette: document.querySelector('#palette'),
-  cycles: document.querySelector('#cycles'),
-  status: document.querySelector('#status')
+  viewer: document.querySelector("#viewer"),
+  sampleSelect: document.querySelector("#sampleSelect"),
+  prevBtn: document.querySelector("#prevBtn"),
+  nextBtn: document.querySelector("#nextBtn"),
+  resumeUploadedBtn: document.querySelector("#resumeUploadedBtn"),
+  pauseBtn: document.querySelector("#pauseBtn"),
+  downloadBtn: document.querySelector("#downloadBtn"),
+  pngUpload: document.querySelector("#pngUpload"),
+  jsonUpload: document.querySelector("#jsonUpload"),
+  palette: document.querySelector("#palette"),
+  cycles: document.querySelector("#cycles"),
+  status: document.querySelector("#status"),
 };
 
-const player = new CanvasCyclePlayer(els.viewer);
+const player = new Cycle8Player(els.viewer);
 let currentSampleIndex = 0;
 let activeData = null;
 let uploadedSnapshot = null;
 
 function init() {
   sampleNames.forEach((name) => {
-    const opt = document.createElement('option');
+    const opt = document.createElement("option");
     opt.value = name;
     opt.textContent = name;
     els.sampleSelect.appendChild(opt);
   });
 
-  els.sampleSelect.addEventListener('change', async () => {
+  els.sampleSelect.addEventListener("change", async () => {
     currentSampleIndex = els.sampleSelect.selectedIndex;
     await loadSample(sampleNames[currentSampleIndex]);
   });
-  els.prevBtn.addEventListener('click', async () => {
-    currentSampleIndex = (currentSampleIndex - 1 + sampleNames.length) % sampleNames.length;
+  els.prevBtn.addEventListener("click", async () => {
+    currentSampleIndex =
+      (currentSampleIndex - 1 + sampleNames.length) % sampleNames.length;
     els.sampleSelect.selectedIndex = currentSampleIndex;
     await loadSample(sampleNames[currentSampleIndex]);
   });
-  els.nextBtn.addEventListener('click', async () => {
+  els.nextBtn.addEventListener("click", async () => {
     currentSampleIndex = (currentSampleIndex + 1) % sampleNames.length;
     els.sampleSelect.selectedIndex = currentSampleIndex;
     await loadSample(sampleNames[currentSampleIndex]);
   });
 
-  els.resumeUploadedBtn.addEventListener('click', () => {
+  els.resumeUploadedBtn.addEventListener("click", () => {
     if (!uploadedSnapshot) return;
     setActiveData(cloneImageData(uploadedSnapshot));
-    setStatus('Resumed uploaded image from memory.');
+    setStatus("Resumed uploaded image from memory.");
   });
 
-  els.pauseBtn.addEventListener('click', () => {
+  els.pauseBtn.addEventListener("click", () => {
     if (player.paused) {
       player.resume();
-      els.pauseBtn.textContent = 'Pause';
+      els.pauseBtn.textContent = "Pause";
     } else {
       player.pause();
-      els.pauseBtn.textContent = 'Resume';
+      els.pauseBtn.textContent = "Resume";
     }
   });
 
-  els.downloadBtn.addEventListener('click', downloadCurrentJson);
-  els.jsonUpload.addEventListener('change', onJsonUpload);
-  els.pngUpload.addEventListener('change', onPngUpload);
+  els.downloadBtn.addEventListener("click", downloadCurrentJson);
+  els.jsonUpload.addEventListener("change", onJsonUpload);
+  els.pngUpload.addEventListener("change", onPngUpload);
 
   loadSample(sampleNames[currentSampleIndex]);
 }
 
 async function loadSample(name) {
   const url = `/images/${name}.json?t=${Date.now()}`;
-  const res = await fetch(url, { cache: 'no-store' });
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to load sample: ${name}`);
   const json = await res.json();
   setActiveData(normalizeData({ ...json, filename: `${name}.json` }));
@@ -87,23 +88,28 @@ function setActiveData(data) {
 }
 
 function renderPalette() {
-  els.palette.innerHTML = '';
+  els.palette.innerHTML = "";
   activeData.colors.forEach((rgb, index) => {
-    const chip = document.createElement('button');
-    chip.className = 'chip';
+    const chip = document.createElement("button");
+    chip.className = "chip";
     chip.draggable = true;
     chip.dataset.index = String(index);
-    chip.title = `${index}: rgb(${rgb.join(', ')})`;
+    chip.title = `${index}: rgb(${rgb.join(", ")})`;
     chip.style.backgroundColor = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
-    chip.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('text/plain', chip.dataset.index);
+    chip.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", chip.dataset.index);
     });
-    chip.addEventListener('dragover', (e) => e.preventDefault());
-    chip.addEventListener('drop', (e) => {
+    chip.addEventListener("dragover", (e) => e.preventDefault());
+    chip.addEventListener("drop", (e) => {
       e.preventDefault();
-      const fromIndex = Number(e.dataTransfer.getData('text/plain'));
+      const fromIndex = Number(e.dataTransfer.getData("text/plain"));
       const toIndex = Number(chip.dataset.index);
-      if (Number.isNaN(fromIndex) || Number.isNaN(toIndex) || fromIndex === toIndex) return;
+      if (
+        Number.isNaN(fromIndex) ||
+        Number.isNaN(toIndex) ||
+        fromIndex === toIndex
+      )
+        return;
       reorderPalette(fromIndex, toIndex);
     });
     els.palette.appendChild(chip);
@@ -117,7 +123,9 @@ function reorderPalette(fromIndex, toIndex) {
   colors.splice(toIndex, 0, moved);
 
   const maxPaletteIndex = colors.length - 1;
-  activeData.cycles.forEach((cycle) => adjustCycleRangeForMove(cycle, fromIndex, toIndex, maxPaletteIndex));
+  activeData.cycles.forEach((cycle) =>
+    adjustCycleRangeForMove(cycle, fromIndex, toIndex, maxPaletteIndex),
+  );
 
   const remap = new Uint8Array(colors.length);
   const oldIndices = [...Array(colors.length).keys()];
@@ -181,54 +189,75 @@ function clamp(value, min, max) {
 }
 
 function renderCyclesEditor() {
-  els.cycles.innerHTML = '';
+  els.cycles.innerHTML = "";
   activeData.cycles.forEach((cycle, idx) => {
-    const row = document.createElement('div');
-    row.className = 'cycle-row';
+    const row = document.createElement("div");
+    row.className = "cycle-row";
 
     row.appendChild(makeLabel(`Cycle ${idx + 1}`));
-    row.appendChild(makeSelect('reverse', cycle.reverse, [0, 1], (v) => cycle.reverse = Number(v)));
-    row.appendChild(makeInput('rate', cycle.rate, -99999, 99999, (v) => cycle.rate = Number(v)));
-    row.appendChild(makeInput('low', cycle.low, 0, 255, (v) => cycle.low = Number(v)));
-    row.appendChild(makeInput('high', cycle.high, 0, 255, (v) => cycle.high = Number(v)));
+    row.appendChild(
+      makeSelect(
+        "reverse",
+        cycle.reverse,
+        [0, 1],
+        (v) => (cycle.reverse = Number(v)),
+      ),
+    );
+    row.appendChild(
+      makeInput(
+        "rate",
+        cycle.rate,
+        -99999,
+        99999,
+        (v) => (cycle.rate = Number(v)),
+      ),
+    );
+    row.appendChild(
+      makeInput("low", cycle.low, 0, 255, (v) => (cycle.low = Number(v))),
+    );
+    row.appendChild(
+      makeInput("high", cycle.high, 0, 255, (v) => (cycle.high = Number(v))),
+    );
 
     els.cycles.appendChild(row);
   });
 }
 
 function makeLabel(text) {
-  const el = document.createElement('span');
+  const el = document.createElement("span");
   el.textContent = text;
   return el;
 }
 
 function makeSelect(name, value, options, onChange) {
-  const wrap = document.createElement('label');
+  const wrap = document.createElement("label");
   wrap.textContent = `${name}: `;
-  const sel = document.createElement('select');
+  const sel = document.createElement("select");
   options.forEach((v) => {
-    const opt = document.createElement('option');
+    const opt = document.createElement("option");
     opt.value = String(v);
     opt.textContent = String(v);
     if (v === value) opt.selected = true;
     sel.appendChild(opt);
   });
-  sel.addEventListener('change', () => onChange(sel.value));
+  sel.addEventListener("change", () => onChange(sel.value));
   wrap.appendChild(sel);
   return wrap;
 }
 
 function makeInput(name, value, min, max, onChange) {
-  const wrap = document.createElement('label');
+  const wrap = document.createElement("label");
   wrap.textContent = `${name}: `;
-  const input = document.createElement('input');
-  input.type = 'number';
+  const input = document.createElement("input");
+  input.type = "number";
   input.value = String(value);
   input.min = String(min);
   input.max = String(max);
-  input.addEventListener('change', () => {
+  input.addEventListener("change", () => {
     const parsed = Number(input.value);
-    input.value = String(Math.max(min, Math.min(max, Number.isNaN(parsed) ? min : parsed)));
+    input.value = String(
+      Math.max(min, Math.min(max, Number.isNaN(parsed) ? min : parsed)),
+    );
     onChange(input.value);
   });
   wrap.appendChild(input);
@@ -245,7 +274,7 @@ async function onJsonUpload(event) {
   uploadedSnapshot = cloneImageData(normalized);
   els.resumeUploadedBtn.disabled = false;
   setStatus(`Loaded JSON upload: ${file.name}`);
-  event.target.value = '';
+  event.target.value = "";
 }
 
 async function onPngUpload(event) {
@@ -255,7 +284,7 @@ async function onPngUpload(event) {
   const png = UPNG.decode(buffer);
 
   if (png.ctype !== 3 || !png.tabs?.PLTE) {
-    throw new Error('PNG must be indexed color with a PLTE palette.');
+    throw new Error("PNG must be indexed color with a PLTE palette.");
   }
 
   const rawColors = png.tabs.PLTE;
@@ -275,19 +304,19 @@ async function onPngUpload(event) {
   }
 
   const converted = normalizeData({
-    filename: file.name.replace(/\.png$/i, '.json'),
+    filename: file.name.replace(/\.png$/i, ".json"),
     width: png.width,
     height: png.height,
     pixels,
     colors,
-    cycles: []
+    cycles: [],
   });
 
   setActiveData(converted);
   uploadedSnapshot = cloneImageData(converted);
   els.resumeUploadedBtn.disabled = false;
   setStatus(`Converted PNG upload: ${file.name}`);
-  event.target.value = '';
+  event.target.value = "";
 }
 
 function downloadCurrentJson() {
@@ -298,13 +327,15 @@ function downloadCurrentJson() {
     height: activeData.height,
     pixels: Array.from(activeData.pixels),
     colors: activeData.colors,
-    cycles: activeData.cycles
+    cycles: activeData.cycles,
   };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json",
+  });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
-  a.download = payload.filename || 'canvascycle-export.json';
+  a.download = payload.filename || "canvascycle-export.json";
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -318,7 +349,7 @@ function cloneImageData(data) {
     height: data.height,
     pixels: Uint8Array.from(data.pixels),
     colors: data.colors.map((c) => [c[0], c[1], c[2]]),
-    cycles: data.cycles.map((cy) => ({ ...cy }))
+    cycles: data.cycles.map((cy) => ({ ...cy })),
   });
 }
 

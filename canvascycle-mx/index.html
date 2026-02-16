@@ -53,7 +53,12 @@
           /></label>
           <hr />
           <div id="menu_export_json" class="menu-item">Export JSON</div>
-          <div id="menu_export_embed" class="menu-item">Export Embed</div>
+          <div id="menu_export_embed" class="menu-item">Export Standalone</div>
+          <hr />
+          <div id="menu_download_player" class="menu-item">Download Player</div>
+          <div id="menu_view_example" class="menu-item">
+            View Player Example
+          </div>
         </div>
       </div>
       <div id="edit_menu_wrap" class="menu-wrap">
@@ -413,7 +418,7 @@
           </div>
 
           <section class="help-panel" data-help-panel="shortcuts">
-            <h3>Shortcuts</h3>
+            <!-- <h3>Shortcuts</h3> -->
             <div class="help-tool-list">
               <div class="help-tool-row">
                 <span class="help-tool-icon"><kbd>Space</kbd></span>
@@ -459,37 +464,98 @@
           </section>
 
           <section class="help-panel hidden" data-help-panel="import-export">
-            <h3>Import/Export</h3>
-            <p>
-              <strong>Import PNG:</strong> Import an indexed PNG and convert it
-              into canvascycle JSON data (pixels, palette, and cycle-ready
-              structure).
-            </p>
-            <p>
-              <strong>Import JSON:</strong> Load a previously exported
-              canvascycle JSON file to continue editing.
-            </p>
-            <p>
-              <strong>Export JSON:</strong> Save the current image, palette, and
-              cycle data as a standard JSON file.
-            </p>
-            <p>
-              <strong>Export Embeddable JSON:</strong> Save a compact/embeddable
-              variant for web playback integrations.
-            </p>
+            <!-- <h3>Import/Export</h3> -->
+
+            <div class="help-tool-list">
+              <div class="help-tool-row">
+                <span class="help-tool-icon">↑</span>
+                <div>
+                  <strong>Import PNG</strong>
+                  <p>
+                    Import an indexed PNG and convert it into JSON data (pixels,
+                    palette, and cycle-ready structure).
+                  </p>
+                </div>
+              </div>
+              <div class="help-tool-row">
+                <span class="help-tool-icon">↑</span>
+                <div>
+                  <strong>Import JSON</strong>
+                  <p>
+                    Load a previously exported JSON file to continue editing.
+                  </p>
+                </div>
+              </div>
+              <div class="help-tool-row">
+                <span class="help-tool-icon">↓</span>
+                <div>
+                  <strong>Export JSON</strong>
+                  <p>
+                    Save the current image, palette, and cycle data as a JSON
+                    file that can be reimported into Cycle8 or played with the
+                    Cycle8Player.
+                  </p>
+                </div>
+              </div>
+              <div class="help-tool-row">
+                <span class="help-tool-icon">↓</span>
+                <div>
+                  <strong>Export Standalone</strong>
+                  <p>
+                    Save the current image as a self-executing standalone script
+                    that can be added to any HTML page.
+                  </p>
+                </div>
+              </div>
+            </div>
           </section>
 
           <section class="help-panel hidden" data-help-panel="color-data">
-            <h3>Color Data</h3>
+            <!-- <h3>Color Data</h3> -->
             <p>
               The color data palette shows all indexed colors. You can inspect,
               select, and reorganize palette entries to control how cycling
               affects the image.
             </p>
+
+            <div class="help-tool-list">
+              <div class="help-tool-row">
+                <span class="help-tool-icon">⌖</span>
+                <div>
+                  <strong>Hover</strong>
+                  <p>
+                    Hover over any color chip to highlight pixels of that color
+                    in the image and reveal meta data about the color chip.
+                  </p>
+                </div>
+              </div>
+              <div class="help-tool-row">
+                <span class="help-tool-icon">×2</span>
+                <div>
+                  <strong>Double-click</strong>
+                  <p>
+                    Double-click any color chip to open a color picker and
+                    change the color of the chip. Pixels of that color in the
+                    image will also be changed.
+                  </p>
+                </div>
+              </div>
+              <div class="help-tool-row">
+                <span class="help-tool-icon">↔</span>
+                <div>
+                  <strong>Drag & Drop</strong>
+                  <p>
+                    Drag and drop any color chip to reorder colors in the
+                    palette. Ranges in the Cycles panel will be updated to match
+                    new palette order.
+                  </p>
+                </div>
+              </div>
+            </div>
           </section>
 
           <section class="help-panel hidden" data-help-panel="image-tools">
-            <h3>Image Tools</h3>
+            <!-- <h3>Image Tools</h3> -->
             <div class="help-tool-list">
               <div class="help-tool-row">
                 <span class="help-tool-icon">🔍</span>
@@ -553,7 +619,7 @@
           </section>
 
           <section class="help-panel hidden" data-help-panel="cycle-palette">
-            <h3>Cycle Palette</h3>
+            <!-- <h3>Cycle Palette</h3> -->
             <div class="help-tool-list">
               <div class="help-tool-row">
                 <span class="help-tool-icon"
@@ -599,7 +665,7 @@
           </section>
 
           <section class="help-panel hidden" data-help-panel="cycle-data">
-            <h3>Cycle Data</h3>
+            <!-- <h3>Cycle Data</h3> -->
             <div class="help-tool-list">
               <div class="help-tool-row">
                 <span class="help-tool-icon">＋</span>
@@ -659,20 +725,80 @@
           </section>
 
           <section class="help-panel hidden" data-help-panel="player">
-            <h3>Player</h3>
-            <p>
-              <strong>Standalone player script:</strong> Use the player script
-              to load and play a JSON data file without the editor UI.
-              <a href="src/player-core.js" download
-                >Download standalone player script</a
-              >.
-            </p>
-            <p>
-              <strong>Standalone embeddable JSON:</strong> This export is
-              self-executing. Embed it directly in any HTML page with a
-              <code>&lt;script&gt;</code> tag&mdash;no separate player pairing
-              is required.
-            </p>
+            <!-- <h3>Player</h3> -->
+            <div class="help-tool-list">
+              <div class="help-tool-row">
+                <span class="help-tool-icon">↓</span>
+                <div>
+                  <strong>Cycle8Player</strong>
+                  <p style="padding-right: 6rem">
+                    Use the Cycle8Player script to load and play a JSON data
+                    file in any HTML page.
+                  </p>
+                  <a
+                    href="public/Cycle8Player.zip"
+                    class="button"
+                    download
+                    style="position: absolute; right: 5px; top: 5px"
+                    >Download</a
+                  >
+                </div>
+              </div>
+              <div class="help-tool-row">
+                <span class="help-tool-icon">↓</span>
+                <div>
+                  <strong>Export JSON</strong>
+                  <p>
+                    Use the <i>File > Export JSON</i> menu item to download a
+                    JSON data file containing your image data, which can be
+                    controlled using the Cycle8Player.
+                  </p>
+                  <p><strong>Example</strong></p>
+                  <pre class="example">
+&lt;html&gt;
+  &lt;body&gt;
+    &lt;canvas id="player"&gt;&lt;/canvas&gt;
+    &lt;script src="./Cycle8Player.js"&gt;&lt;/script&gt;
+    &lt;script&gt;
+      const canvas = document.getElementById("player");
+      const player = new Cycle8Player(canvas);
+      player.loadFromUrl("MYFILE.json").catch((err) => {
+        console.error(err);
+        alert("Failed to load MYFILE.json");
+      });
+    &lt;/script&gt;
+    &lt;div&gt;Lorem ipsum dolor sit amet.&lt;/div&gt;
+    &lt;script src="mycycles.js"&gt;&lt;/script&gt;
+    &lt;div&gt;Lorem ipsum dolor sit amet.&lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</pre
+                  >
+                </div>
+              </div>
+              <div class="help-tool-row">
+                <span class="help-tool-icon">↓</span>
+                <div>
+                  <strong>Export Standalone</strong>
+                  <p>
+                    Use the <i>File > Export Standalone</i> menu item to
+                    download a standalone self-executing Javascript file. Embed
+                    it directly in any HTML page with a
+                    <code>&lt;script&gt;</code> tag to load it like any other
+                    image.
+                  </p>
+                  <p><strong>Example</strong></p>
+                  <pre class="example">
+&lt;html&gt;
+  &lt;body&gt;
+    &lt;div&gt;Lorem ipsum dolor sit amet.&lt;/div&gt;
+    &lt;script src="mycycles.js"&gt;&lt;/script&gt;
+    &lt;div&gt;Lorem ipsum dolor sit amet.&lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</pre
+                  >
+                </div>
+              </div>
+            </div>
           </section>
         </div>
       </div>

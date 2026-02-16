@@ -1,7 +1,7 @@
-export class CanvasCyclePlayer {
+export class Cycle8Player {
   constructor(canvas) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
+    this.ctx = canvas.getContext("2d");
     this.imageData = null;
     this.data = null;
     this.paused = false;
@@ -15,28 +15,36 @@ export class CanvasCyclePlayer {
     this.data = normalizeData(jsonData);
     this.canvas.width = this.data.width;
     this.canvas.height = this.data.height;
-    this.imageData = this.ctx.createImageData(this.data.width, this.data.height);
+    this.imageData = this.ctx.createImageData(
+      this.data.width,
+      this.data.height,
+    );
     this.lastDraw = performance.now();
     if (!this.raf) this.raf = requestAnimationFrame(this.loop);
   }
 
   async loadFromUrl(url) {
     const stamp = `t=${Date.now()}`;
-    const glue = url.includes('?') ? '&' : '?';
-    const res = await fetch(`${url}${glue}${stamp}`, { cache: 'no-store' });
+    const glue = url.includes("?") ? "&" : "?";
+    const res = await fetch(`${url}${glue}${stamp}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`Failed to load ${url}`);
     const json = await res.json();
     this.loadFromData(json);
   }
 
-  pause() { this.paused = true; }
-  resume() { this.paused = false; }
+  pause() {
+    this.paused = true;
+  }
+  resume() {
+    this.paused = false;
+  }
   stop() {
     this.paused = true;
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.data = null;
-    if (this.imageData) this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.imageData)
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
   loop(now) {
@@ -68,17 +76,20 @@ export class CanvasCyclePlayer {
 
 export function normalizeData(input) {
   return {
-    filename: input.filename || 'untitled.json',
+    filename: input.filename || "untitled.json",
     width: input.width,
     height: input.height,
-    pixels: input.pixels instanceof Uint8Array ? input.pixels : Uint8Array.from(input.pixels || []),
+    pixels:
+      input.pixels instanceof Uint8Array
+        ? input.pixels
+        : Uint8Array.from(input.pixels || []),
     colors: (input.colors || []).map((c) => [c[0], c[1], c[2]]),
     cycles: (input.cycles || []).map((cy) => ({
       low: clampNum(cy.low, 0, 255),
       high: clampNum(cy.high, 0, 255),
       rate: Number(cy.rate) || 0,
-      reverse: (Number(cy.reverse) === 2 || Number(cy.reverse) === 1) ? 1 : 0
-    }))
+      reverse: Number(cy.reverse) === 2 || Number(cy.reverse) === 1 ? 1 : 0,
+    })),
   };
 }
 
@@ -90,7 +101,9 @@ export function getCycledColors(baseColors, cycles, timeNow) {
     const high = Math.min(255, cycle.high | 0);
     if (high <= low) continue;
     const size = high - low + 1;
-    const amountRaw = Math.floor((timeNow / (1000 / (cycle.rate / 280))) % size);
+    const amountRaw = Math.floor(
+      (timeNow / (1000 / (cycle.rate / 280))) % size,
+    );
     const amount = cycle.reverse === 1 ? (size - amountRaw) % size : amountRaw;
     if (!amount) continue;
     const segment = colors.slice(low, high + 1);
