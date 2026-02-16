@@ -1468,13 +1468,6 @@ var CanvasCycle = {
     container.onfocusout = function (e) {
       CanvasCycle.clearSelectedColorFromCycleFieldBlur(e);
     };
-    container.addEventListener(
-      "focus",
-      function (e) {
-        CanvasCycle.syncSelectedColorToCycleField(e.target);
-      },
-      true,
-    );
     container.oninput = function (e) {
       var t = e.target;
       CanvasCycle.syncSelectedColorToCycleField(t);
@@ -1560,9 +1553,12 @@ var CanvasCycle = {
   },
 
   syncSelectedColorToCycleField: function (field) {
-    if (!field || !this.bmp) return;
+    if (!field || !this.bmp || !field.getAttribute) return;
     var key = field.getAttribute("data-key");
-    if (key !== "low" && key !== "high") return;
+    if (key !== "low" && key !== "high") {
+      this.clearCycleFieldColorSelection();
+      return;
+    }
     var idx = parseInt(field.value, 10);
     if (isNaN(idx)) {
       var cycleIdx = parseInt(field.getAttribute("data-cycle"), 10);
@@ -1590,14 +1586,12 @@ var CanvasCycle = {
     if (!field || !field.getAttribute) return;
     var key = field.getAttribute("data-key");
     if (key !== "low" && key !== "high") return;
-    setTimeout(function () {
-      var active = document.activeElement;
-      if (active && active.getAttribute) {
-        var activeKey = active.getAttribute("data-key");
-        if (activeKey === "low" || activeKey === "high") return;
-      }
-      CanvasCycle.clearCycleFieldColorSelection();
-    }, 0);
+    var next = evt.relatedTarget;
+    if (next && next.getAttribute) {
+      var nextKey = next.getAttribute("data-key");
+      if (nextKey === "low" || nextKey === "high") return;
+    }
+    this.clearCycleFieldColorSelection();
   },
 
   addCycle: function () {
