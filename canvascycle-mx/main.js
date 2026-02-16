@@ -1388,7 +1388,35 @@ var CanvasCycle = {
         '" placeholder="Cycle name"></label>' +
         '<div class="button cycle_remove" data-action="remove" data-cycle="' +
         idx +
-        '">x</div>';
+        '">x</div>' +
+        '<label class="cycle_field cycle_name"><input type="text" maxlength="32" data-cycle="' +
+        idx +
+        '" data-key="name" value="' +
+        escapeTextFieldValue(cyc.name) +
+        '" placeholder="Cycle name"></label>';
+      row.ondragstart = function (e) {
+        var targetTag = e.target && e.target.tagName;
+        if (targetTag === "INPUT" || targetTag === "SELECT") {
+          e.preventDefault();
+          return;
+        }
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", this.getAttribute("data-cycle"));
+        this.classList.add("dragging");
+      };
+      row.ondragend = function () {
+        this.classList.remove("dragging");
+      };
+      row.ondragover = function (e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      };
+      row.ondrop = function (e) {
+        e.preventDefault();
+        var fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
+        var toIdx = parseInt(this.getAttribute("data-cycle"), 10);
+        CanvasCycle.reorderCycles(fromIdx, toIdx);
+      };
       container.appendChild(row);
     }
 
