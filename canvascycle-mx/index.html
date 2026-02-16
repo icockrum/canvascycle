@@ -351,7 +351,94 @@
           </button>
         </div>
         <div class="modal-scroll-area help-content">
-          <h3>Image Tool Palette</h3>
+          <div class="help-tabs" role="tablist" aria-label="Help sections">
+            <button class="help-tab active" role="tab" aria-selected="true" data-help-tab="shortcuts">Shortcuts</button>
+            <button class="help-tab" role="tab" aria-selected="false" data-help-tab="import-export">Import/Export</button>
+            <button class="help-tab" role="tab" aria-selected="false" data-help-tab="color-data">Color Data</button>
+            <button class="help-tab" role="tab" aria-selected="false" data-help-tab="image-tools">Image Tools</button>
+            <button class="help-tab" role="tab" aria-selected="false" data-help-tab="cycle-palette">Cycle Palette</button>
+            <button class="help-tab" role="tab" aria-selected="false" data-help-tab="cycle-data">Cycle Data</button>
+            <button class="help-tab" role="tab" aria-selected="false" data-help-tab="player">Player</button>
+          </div>
+
+          <section class="help-panel" data-help-panel="shortcuts">
+            <h3>Shortcuts</h3>
+            <div class="help-tool-list">
+              <div class="help-tool-row">
+                <span class="help-tool-icon"><kbd>Space</kbd></span>
+                <div>
+                  <strong>Temporary Move</strong>
+                  <p>
+                    Hold <kbd>Space</kbd> to temporarily switch to Move while
+                    held.
+                  </p>
+                </div>
+              </div>
+              <div class="help-tool-row">
+                <span class="help-tool-icon"><kbd>⌘</kbd>/<kbd>Ctrl</kbd></span>
+                <div>
+                  <strong>Temporary Zoom</strong>
+                  <p>
+                    Hold <kbd>Space</kbd> + <kbd>⌘</kbd> (or <kbd>Ctrl</kbd> on
+                    non-Mac) to temporarily switch to Zoom while held.
+                  </p>
+                </div>
+              </div>
+              <div class="help-tool-row">
+                <span class="help-tool-icon">↩</span>
+                <div>
+                  <strong>Undo</strong>
+                  <p>
+                    Press <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Z</kbd> to undo the
+                    most recent paint or cycle edit.
+                  </p>
+                </div>
+              </div>
+              <div class="help-tool-row">
+                <span class="help-tool-icon">Esc</span>
+                <div>
+                  <strong>Cancel Tool Mode</strong>
+                  <p>
+                    Press <kbd>Escape</kbd> to close open dialogs and clear
+                    active/temporary tool states.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="help-panel hidden" data-help-panel="import-export">
+            <h3>Import/Export</h3>
+            <p>
+              <strong>Import PNG:</strong> Import an indexed PNG and convert it
+              into canvascycle JSON data (pixels, palette, and cycle-ready
+              structure).
+            </p>
+            <p>
+              <strong>Import JSON:</strong> Load a previously exported canvascycle
+              JSON file to continue editing.
+            </p>
+            <p>
+              <strong>Export JSON:</strong> Save the current image, palette, and
+              cycle data as a standard JSON file.
+            </p>
+            <p>
+              <strong>Export Embeddable JSON:</strong> Save a compact/embeddable
+              variant for web playback integrations.
+            </p>
+          </section>
+
+          <section class="help-panel hidden" data-help-panel="color-data">
+            <h3>Color Data</h3>
+            <p>
+              The color data palette shows all indexed colors. You can inspect,
+              select, and reorganize palette entries to control how cycling
+              affects the image.
+            </p>
+          </section>
+
+          <section class="help-panel hidden" data-help-panel="image-tools">
+            <h3>Image Tools</h3>
           <div class="help-tool-list">
             <div class="help-tool-row">
               <span class="help-tool-icon">🔍</span>
@@ -412,15 +499,10 @@
               </div>
             </div>
           </div>
+          </section>
 
-          <h3>Color Data</h3>
-          <p>
-            The color data palette shows all indexed colors. You can inspect,
-            select, and reorganize palette entries to control how cycling
-            affects the image.
-          </p>
-
-          <h3>Cycle Palette</h3>
+          <section class="help-panel hidden" data-help-panel="cycle-palette">
+            <h3>Cycle Palette</h3>
           <div class="help-tool-list">
             <div class="help-tool-row">
               <span class="help-tool-icon"
@@ -463,8 +545,10 @@
               </div>
             </div>
           </div>
+          </section>
 
-          <h3>Cycle Data</h3>
+          <section class="help-panel hidden" data-help-panel="cycle-data">
+            <h3>Cycle Data</h3>
           <div class="help-tool-list">
             <div class="help-tool-row">
               <span class="help-tool-icon">＋</span>
@@ -521,86 +605,24 @@
               </div>
             </div>
           </div>
+          </section>
 
-          <h3>Import</h3>
-          <p>
-            <strong>Import PNG:</strong> Import an indexed PNG and convert it
-            into canvascycle JSON data (pixels, palette, and cycle-ready
-            structure).
-          </p>
-          <p>
-            <strong>Import JSON:</strong> Load a previously exported canvascycle
-            JSON file to continue editing.
-          </p>
-
-          <h3>Export</h3>
-          <p>
-            <strong>Export JSON:</strong> Save the current image, palette, and
-            cycle data as a standard JSON file.
-          </p>
-          <p>
-            <strong>Export Embeddable JSON:</strong> Save a compact/embeddable
-            variant for web playback integrations.
-          </p>
-
-          <h3>Player</h3>
-          <p>
-            <strong>Standalone player script:</strong> Use the player script to
-            load and play a JSON data file without the editor UI.
-            <a href="src/player-core.js" download
-              >Download standalone player script</a
-            >.
-          </p>
-          <p>
-            <strong>Standalone embeddable JSON:</strong> This export is
-            self-executing. Embed it directly in any HTML page with a
-            <code>&lt;script&gt;</code> tag&mdash;no separate player pairing is
-            required.
-          </p>
-
-          <h3>Shortcuts</h3>
-          <div class="help-tool-list">
-            <div class="help-tool-row">
-              <span class="help-tool-icon"><kbd>Space</kbd></span>
-              <div>
-                <strong>Temporary Move</strong>
-                <p>
-                  Hold <kbd>Space</kbd> to temporarily switch to Move while
-                  held.
-                </p>
-              </div>
-            </div>
-            <div class="help-tool-row">
-              <span class="help-tool-icon"><kbd>⌘</kbd>/<kbd>Ctrl</kbd></span>
-              <div>
-                <strong>Temporary Zoom</strong>
-                <p>
-                  Hold <kbd>Space</kbd> + <kbd>⌘</kbd> (or <kbd>Ctrl</kbd> on
-                  non-Mac) to temporarily switch to Zoom while held.
-                </p>
-              </div>
-            </div>
-            <div class="help-tool-row">
-              <span class="help-tool-icon">↩</span>
-              <div>
-                <strong>Undo</strong>
-                <p>
-                  Press <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Z</kbd> to undo the
-                  most recent paint or cycle edit.
-                </p>
-              </div>
-            </div>
-            <div class="help-tool-row">
-              <span class="help-tool-icon">Esc</span>
-              <div>
-                <strong>Cancel Tool Mode</strong>
-                <p>
-                  Press <kbd>Escape</kbd> to close open dialogs and clear
-                  active/temporary tool states.
-                </p>
-              </div>
-            </div>
-          </div>
+          <section class="help-panel hidden" data-help-panel="player">
+            <h3>Player</h3>
+            <p>
+              <strong>Standalone player script:</strong> Use the player script to
+              load and play a JSON data file without the editor UI.
+              <a href="src/player-core.js" download
+                >Download standalone player script</a
+              >.
+            </p>
+            <p>
+              <strong>Standalone embeddable JSON:</strong> This export is
+              self-executing. Embed it directly in any HTML page with a
+              <code>&lt;script&gt;</code> tag&mdash;no separate player pairing is
+              required.
+            </p>
+          </section>
         </div>
       </div>
     </div>
