@@ -1464,6 +1464,8 @@ var CanvasCycle = {
       if (nextKey === "low" || nextKey === "high") return;
     }
     this.selectedColor = -1;
+    this.keyboardHighlightColor = -1;
+    this.updateHighlightColor();
     this.updatePaletteSelection();
   },
 
