@@ -518,6 +518,41 @@ div#d_debug .fps {
 	overflow: auto;
 	padding-right: 8px;
 }
+
+.help-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 12px;
+	position: sticky;
+	top: 0;
+	background: var(--panel);
+	padding: 2px 0 8px;
+	z-index: 1;
+}
+.help-tab {
+	border: 1px solid var(--line);
+	background: var(--panel-2);
+	color: var(--text);
+	border-radius: 999px;
+	font-size: 12px;
+	line-height: 1;
+	padding: 6px 10px;
+	cursor: pointer;
+}
+.help-tab:hover,
+.help-tab:focus-visible {
+	border-color: var(--accent);
+	outline: none;
+}
+.help-tab.active {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: #fff;
+}
+.help-panel {
+	margin-bottom: 8px;
+}
 .help-content h3 {
 	margin: 14px 0 8px;
 	font-size: 14px;
