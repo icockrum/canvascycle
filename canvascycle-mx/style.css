@@ -137,6 +137,9 @@ body {
 	left: 100%;
 	top: 0;
 	width: 220px;
+	max-height: calc(100dvh - var(--menuheight));
+	overflow-y: auto;
+	overflow-x: hidden;
 	background: var(--panel);
 	border: 1px solid var(--line);
 	/* border-radius: 10px; */
