@@ -86,8 +86,7 @@ body {
 }
 
 #help_menu {
-	left: auto;
-	right: 0;
+	left: 0;
 }
 .popup-menu.hidden,
 .modal.hidden {
@@ -491,6 +490,9 @@ div#d_debug .fps {
 	border-radius: 12px;
 	padding: 16px;
 }
+.modal-card section {
+	padding: 0 2rem;
+}
 .modal-actions {
 	display: flex;
 	justify-content: flex-end;
@@ -509,8 +511,10 @@ div#d_debug .fps {
 	font-size: 16px;
 }
 .modal-card-scrollable {
-	width: min(760px, calc(100vw - 40px));
+	/* width: min(760px, calc(100vw - 40px)); */
+	width: min(600px, calc(100vw - 40px));
 	max-height: min(80vh, 700px);
+	min-height: calc(80vh - 40px);
 	display: flex;
 	flex-direction: column;
 }
@@ -522,7 +526,7 @@ div#d_debug .fps {
 .help-tabs {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 6px;
+	/* gap: 6px; */
 	margin-bottom: 12px;
 	position: sticky;
 	top: 0;
@@ -534,11 +538,17 @@ div#d_debug .fps {
 	border: 1px solid var(--line);
 	background: var(--panel-2);
 	color: var(--text);
-	border-radius: 999px;
+	/* border-radius: 999px; */
 	font-size: 12px;
 	line-height: 1;
 	padding: 6px 10px;
 	cursor: pointer;
+}
+.help-tab:first-of-type {
+    border-radius: 6px 0 0 6px;
+}
+.help-tab:last-of-type {
+    border-radius: 0 6px 6px 0;
 }
 .help-tab:hover,
 .help-tab:focus-visible {
@@ -552,6 +562,9 @@ div#d_debug .fps {
 }
 .help-panel {
 	margin-bottom: 8px;
+}
+section.help-panel.hidden {
+    display: none;
 }
 .help-content h3 {
 	margin: 14px 0 8px;
