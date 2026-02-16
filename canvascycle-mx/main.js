@@ -61,6 +61,7 @@ var CanvasCycle = {
 	forceZoomOutCursor: false,
 	zoomDrag: null,
 	cycleTimeOffset: 0,
+	cycleFieldBlurTimer: null,
 	pendingPaletteSortMode: "",
 	paletteEditColorIdx: -1,
 	paletteColorInputEl: null,
@@ -1411,6 +1412,19 @@ var CanvasCycle = {
 				var toIdx = parseInt(this.getAttribute("data-cycle"), 10);
 				CanvasCycle.reorderCycles(fromIdx, toIdx);
 			};
+
+			var cycleRangeFields = row.querySelectorAll(
+				'input[data-key="low"], input[data-key="high"]',
+			);
+			for (var fieldIdx = 0; fieldIdx < cycleRangeFields.length; fieldIdx++) {
+				cycleRangeFields[fieldIdx].onfocus = function () {
+					CanvasCycle.handleCycleRangeFieldFocus(this);
+				};
+				cycleRangeFields[fieldIdx].onblur = function (e) {
+					CanvasCycle.handleCycleRangeFieldBlur(e);
+				};
+			}
+
 			container.appendChild(row);
 		}
 
@@ -1455,12 +1469,6 @@ var CanvasCycle = {
 			if (t.getAttribute("data-action") !== "remove") return;
 			var cidx = parseInt(t.getAttribute("data-cycle"), 10);
 			CanvasCycle.removeCycle(cidx);
-		};
-		container.onfocusin = function (e) {
-			CanvasCycle.syncSelectedColorToCycleField(e.target);
-		};
-		container.onfocusout = function (e) {
-			CanvasCycle.clearSelectedColorFromCycleFieldBlur(e);
 		};
 		container.oninput = function (e) {
 			var t = e.target;
@@ -1577,18 +1585,41 @@ var CanvasCycle = {
 		this.updatePaletteSelection();
 	},
 
-	clearSelectedColorFromCycleFieldBlur: function (evt) {
+	handleCycleRangeFieldFocus: function (field) {
+		if (this.cycleFieldBlurTimer) {
+			clearTimeout(this.cycleFieldBlurTimer);
+			this.cycleFieldBlurTimer = null;
+		}
+		this.syncSelectedColorToCycleField(field);
+	},
+
+	handleCycleRangeFieldBlur: function (evt) {
+		this.queueCycleFieldColorSelectionClear(evt);
+	},
+
+	queueCycleFieldColorSelectionClear: function (evt) {
 		if (!evt || !this.bmp) return;
 		var field = evt.target;
 		if (!field || !field.getAttribute) return;
 		var key = field.getAttribute("data-key");
 		if (key !== "low" && key !== "high") return;
-		var next = evt.relatedTarget;
-		if (next && next.getAttribute) {
-			var nextKey = next.getAttribute("data-key");
-			if (nextKey === "low" || nextKey === "high") return;
-		}
-		this.clearCycleFieldColorSelection();
+		if (this.cycleFieldBlurTimer) clearTimeout(this.cycleFieldBlurTimer);
+		this.cycleFieldBlurTimer = setTimeout(function () {
+			CanvasCycle.cycleFieldBlurTimer = null;
+			var active = document.activeElement;
+			if (!active || !active.getAttribute) {
+				CanvasCycle.clearCycleFieldColorSelection();
+				return;
+			}
+			var activeKey = active.getAttribute("data-key");
+			if (
+				(activeKey === "low" || activeKey === "high") &&
+				active.closest &&
+				active.closest("#cycles_editor")
+			)
+				return;
+			CanvasCycle.clearCycleFieldColorSelection();
+		}, 0);
 	},
 
 	addCycle: function () {
