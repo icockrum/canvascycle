@@ -1586,7 +1586,9 @@ var CanvasCycle = {
 		var rows = container ? container.querySelectorAll(".cycle_row") : null;
 		if (!rows || !rows.length) return 0;
 		var firstRect = rows[0].getBoundingClientRect();
-		if (clientY <= firstRect.top + 8) return 0;
+		var lastRect = rows[rows.length - 1].getBoundingClientRect();
+		if (clientY <= firstRect.top + 18) return 0;
+		if (clientY >= lastRect.bottom - 12) return rows.length;
 		for (var idx = 0; idx < rows.length; idx++) {
 			var rect = rows[idx].getBoundingClientRect();
 			if (clientY < rect.top + rect.height / 2) return idx;
@@ -1606,11 +1608,32 @@ var CanvasCycle = {
 		var hover = document.elementFromPoint(clientX, clientY);
 		var rowEl = hover && hover.closest ? hover.closest("#cycles_editor .cycle_row") : null;
 		if (!rowEl || forceInsert) return target;
+
+		var rows = this.getDisplayCycleRows();
+		var rowPos = parseInt(rowEl.getAttribute("data-row"), 10);
+		if (isNaN(rowPos)) return target;
 		target.hoverRowEl = rowEl;
+
 		var hoverType = rowEl.getAttribute("data-type");
+		var rect = rowEl.getBoundingClientRect();
+		var rel = rect.height ? (clientY - rect.top) / rect.height : 0.5;
+		var topZone = rel <= 0.25;
+		var bottomZone = rel >= 0.75;
+
 		if (hoverType === "group") {
+			var groupName = rowEl.getAttribute("data-group") || "";
+			if (topZone) {
+				target.insertIdx = rowPos;
+				return target;
+			}
+			if (bottomZone) {
+				var after = rowPos + 1;
+				while (after < rows.length && (rows[after].groupName || "") === groupName) after++;
+				target.insertIdx = after;
+				return target;
+			}
 			target.hoverType = "into-group";
-			target.targetGroup = rowEl.getAttribute("data-group") || "";
+			target.targetGroup = groupName;
 			for (var idx = 0; idx < this.bmp.palette.cycles.length; idx++) {
 				if ((this.bmp.palette.cycles[idx].group || "") === target.targetGroup) {
 					target.beforeCycleIdx = idx;
@@ -1619,20 +1642,26 @@ var CanvasCycle = {
 			}
 			return target;
 		}
+
 		if (hoverType !== "cycle") return target;
-		target.hoverType = "into-group";
 		var cycleIdx = parseInt(rowEl.getAttribute("data-cycle"), 10);
 		target.targetGroup = rowEl.getAttribute("data-group") || "";
-		if (isNaN(cycleIdx)) return target;
-		var rect = rowEl.getBoundingClientRect();
-		var before = clientY < rect.top + rect.height / 2;
-		if (before) {
+		if (!target.targetGroup || isNaN(cycleIdx)) return target;
+
+		if (topZone) {
+			target.insertIdx = rowPos;
+			return target;
+		}
+		if (bottomZone) {
+			target.insertIdx = rowPos + 1;
+			return target;
+		}
+
+		target.hoverType = "into-group";
+		if (rel < 0.5) {
 			target.beforeCycleIdx = cycleIdx;
 			return target;
 		}
-		var rows = this.getDisplayCycleRows();
-		var rowPos = parseInt(rowEl.getAttribute("data-row"), 10);
-		if (isNaN(rowPos)) return target;
 		for (var i = rowPos + 1; i < rows.length; i++) {
 			if (rows[i].type !== "cycle") continue;
 			if ((rows[i].groupName || "") !== target.targetGroup) continue;
