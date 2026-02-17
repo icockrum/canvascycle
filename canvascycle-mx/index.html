@@ -320,6 +320,17 @@
 			</div>
 		</div>
 
+		<div id="transparency_warning_modal" class="modal hidden">
+			<div class="modal-card">
+				<p>Warning: this PNG contains transparency and Cycle8 does not support alpha. Transparent entries will render as solid palette colors.</p>
+				<div class="modal-actions">
+					<button class="button default-action" type="button" onClick="CC.cancelTransparencyWarning()">
+						OK
+					</button>
+				</div>
+			</div>
+		</div>
+
 		<div id="group_warning_modal" class="modal hidden">
 			<div class="modal-card">
 				<p>Group contains cycle data.</p>
