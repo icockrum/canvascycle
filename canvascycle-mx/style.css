@@ -394,6 +394,17 @@ div#d_debug .fps {
 	opacity: 0.5;
 }
 
+.cycle_row.drop-into {
+	outline: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+	outline-offset: -1px;
+}
+.cycle_group_tone_0 {
+	background: rgba(255, 255, 255, 0.03);
+}
+.cycle_group_tone_1 {
+	background: rgba(255, 255, 255, 0.06);
+}
+
 .cycle_group_row {
 	grid-template-columns: 14px 18px 1.25rem minmax(0, 1fr) 2rem;
 }

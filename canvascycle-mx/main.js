@@ -1386,15 +1386,15 @@ var CanvasCycle = {
 			var cyc = cycles[idx];
 			if (typeof cyc.group !== "string") cyc.group = "";
 			cyc.group = cyc.group.trim();
-			if (!cyc.group) rows.push({ type: "cycle", cycleIdx: idx });
+			if (!cyc.group) rows.push({ type: "cycle", cycleIdx: idx, groupName: "" });
 		}
 		for (var gidx = 0; gidx < this.cycleGroups.length; gidx++) {
 			var groupName = this.cycleGroups[gidx];
-			rows.push({ type: "group", groupName: groupName, groupIdx: gidx });
+			rows.push({ type: "group", groupName: groupName, groupIdx: gidx, tone: gidx % 2 });
 			if (this.collapsedCycleGroups[groupName]) continue;
 			for (var c = 0; c < cycles.length; c++) {
 				if ((cycles[c].group || "") === groupName)
-					rows.push({ type: "cycle", cycleIdx: c, groupName: groupName });
+					rows.push({ type: "cycle", cycleIdx: c, groupName: groupName, tone: gidx % 2 });
 			}
 		}
 		return rows;
@@ -1408,32 +1408,21 @@ var CanvasCycle = {
 		for (var ridx = 0; ridx < rows.length; ridx++) {
 			var rowInfo = rows[ridx];
 			var row = document.createElement("div");
-			row.className = "cycle_row" + (rowInfo.type === "group" ? " cycle_group_row" : "");
+			var toneClass = rowInfo.groupName ? " cycle_group_tone_" + rowInfo.tone : "";
+			row.className = "cycle_row" + (rowInfo.type === "group" ? " cycle_group_row" : "") + toneClass;
 			row.setAttribute("data-row", ridx);
+			row.setAttribute("data-type", rowInfo.type);
+			row.setAttribute("data-group", rowInfo.groupName || "");
 			if (rowInfo.type === "group") {
 				var name = rowInfo.groupName;
-				var children = this.bmp.palette.cycles.filter(function (cyc) {
-					return (cyc.group || "") === name;
-				});
+				var children = this.bmp.palette.cycles.filter(function (cyc) { return (cyc.group || "") === name; });
 				var allActive = children.length ? children.every(function (c) { return c.active !== false; }) : true;
 				var someActive = children.some(function (c) { return c.active !== false; });
 				row.innerHTML =
-					'<div class="cycle_drag" draggable="true" data-action="drag" data-type="group" data-group="' +
-					escapeTextFieldValue(name) +
-					'" title="Drag to reorder"></div>' +
-					'<label class="cycle_field cycle_active"><input type="checkbox" data-type="group" data-group="' +
-					escapeTextFieldValue(name) +
-					'" data-key="active"' +
-					(allActive ? ' checked="checked"' : '') +
-					'></label>' +
-					'<div class="cycle_group_toggle" data-action="toggle-group" data-group="' +
-					escapeTextFieldValue(name) +
-					'">' + (this.collapsedCycleGroups[name] ? '▶' : '▼') + '</div>' +
-					'<div class="cycle_group_name" data-action="edit-group" data-group="' + escapeTextFieldValue(name) + '"><span>' +
-					escapeTextFieldValue(name) +
-					'</span><input class="group_name_input" type="text" maxlength="32" data-key="group-name" data-group="' +
-					escapeTextFieldValue(name) +
-					'" value="' + escapeTextFieldValue(name) + '"></div>' +
+					'<div class="cycle_drag" draggable="true" data-action="drag" data-type="group" data-group="' + escapeTextFieldValue(name) + '" title="Drag to reorder"></div>' +
+					'<label class="cycle_field cycle_active"><input type="checkbox" data-type="group" data-group="' + escapeTextFieldValue(name) + '" data-key="active"' + (allActive ? ' checked="checked"' : '') + '></label>' +
+					'<div class="cycle_group_toggle" data-action="toggle-group" data-group="' + escapeTextFieldValue(name) + '">' + (this.collapsedCycleGroups[name] ? '▶' : '▼') + '</div>' +
+					'<div class="cycle_group_name" data-action="edit-group" data-group="' + escapeTextFieldValue(name) + '"><span>' + escapeTextFieldValue(name) + '</span><input class="group_name_input" type="text" maxlength="32" data-key="group-name" data-group="' + escapeTextFieldValue(name) + '" value="' + escapeTextFieldValue(name) + '"></div>' +
 					'<div class="button cycle_remove" data-action="remove-group" data-group="' + escapeTextFieldValue(name) + '">x</div>';
 				container.appendChild(row);
 				var box = row.querySelector('input[data-key="active"]');
@@ -1445,9 +1434,10 @@ var CanvasCycle = {
 			if (cyc.reverse === 2) cyc.reverse = 1;
 			cyc.reverse = cyc.reverse ? 1 : 0;
 			if (typeof cyc.name !== "string") cyc.name = "";
+			row.setAttribute("data-cycle", idx);
 			row.innerHTML =
 				'<div class="cycle_drag" draggable="true" data-action="drag" data-type="cycle" data-cycle="' + idx + '" title="Drag to reorder"></div>' +
-				'<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' + idx + '" data-key="active"' + (cyc.active === false ? "" : ' checked="checked"') + '"></label>' +
+				'<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' + idx + '" data-key="active"' + (cyc.active === false ? "" : ' checked="checked"') + '></label>' +
 				'<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' + idx + '" data-key="low" value="' + cyc.low + '"></label>' +
 				'<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' + idx + '" data-key="high" value="' + cyc.high + '"></label>' +
 				'<label class="cycle_field"><input type="number" data-cycle="' + idx + '" data-key="rate" value="' + cyc.rate + '"></label>' +
@@ -1466,25 +1456,25 @@ var CanvasCycle = {
 			if (!t || t.getAttribute("data-action") !== "drag") { e.preventDefault(); return; }
 			e.dataTransfer.effectAllowed = "move";
 			e.dataTransfer.setData("text/plain", JSON.stringify({ type: t.getAttribute("data-type"), cycle: t.getAttribute("data-cycle"), group: t.getAttribute("data-group") }));
-			var row = t.closest(".cycle_row");
-			if (row) row.classList.add("dragging");
+			var dragRow = t.closest(".cycle_row");
+			if (dragRow) dragRow.classList.add("dragging");
 		};
 		container.ondragover = function (e) {
 			if (!container.querySelector(".cycle_row.dragging")) return;
 			e.preventDefault();
 			e.dataTransfer.dropEffect = "move";
-			CanvasCycle.showCycleDropIndicator(e.clientY);
+			CanvasCycle.showCycleDropIndicator(e.clientY, e.clientX);
 		};
 		container.ondrop = function (e) {
 			if (!container.querySelector(".cycle_row.dragging")) return;
 			e.preventDefault();
 			var drag;
 			try { drag = JSON.parse(e.dataTransfer.getData("text/plain")); } catch (err) { drag = null; }
-			var insertIdx = CanvasCycle.getCycleDropInsertIndex(e.clientY);
+			var target = CanvasCycle.getCycleDropTarget(e.clientY, e.clientX);
 			CanvasCycle.clearCycleDropIndicator();
 			if (!drag) return;
-			if (drag.type === "group") CanvasCycle.moveGroupToDisplayIndex(drag.group, insertIdx);
-			else CanvasCycle.moveCycleToDisplayIndex(parseInt(drag.cycle, 10), insertIdx);
+			if (drag.type === "group") CanvasCycle.moveGroupToDisplayIndex(drag.group, target.insertIdx);
+			else CanvasCycle.moveCycleToPlacement(parseInt(drag.cycle, 10), target);
 		};
 		container.ondragend = function () {
 			var dragging = container.querySelectorAll(".cycle_row.dragging");
@@ -1547,8 +1537,8 @@ var CanvasCycle = {
 			var cyc = CanvasCycle.bmp.palette.cycles[cidx];
 			if (!cyc || key === "name") return;
 			var val = t.type === "checkbox" ? (t.checked ? 1 : 0) : parseInt(t.value, 10);
-			if (key === "active") { cyc.active = !!val; }
-			else if (key === "reverse") { cyc.reverse = val ? 1 : 0; }
+			if (key === "active") cyc.active = !!val;
+			else if (key === "reverse") cyc.reverse = val ? 1 : 0;
 			else {
 				if ((key === "low" || key === "high") && isNaN(val)) val = 0;
 				if (key === "low" || key === "high") { val = Math.max(0, Math.min(255, val)); t.value = "" + val; }
@@ -1584,6 +1574,8 @@ var CanvasCycle = {
 		var container = $("cycles_editor");
 		var rows = container ? container.querySelectorAll(".cycle_row") : null;
 		if (!rows || !rows.length) return 0;
+		var firstRect = rows[0].getBoundingClientRect();
+		if (clientY <= firstRect.top + 8) return 0;
 		for (var idx = 0; idx < rows.length; idx++) {
 			var rect = rows[idx].getBoundingClientRect();
 			if (clientY < rect.top + rect.height / 2) return idx;
@@ -1591,13 +1583,66 @@ var CanvasCycle = {
 		return rows.length;
 	},
 
-	showCycleDropIndicator: function (clientY) {
+	getCycleDropTarget: function (clientY, clientX) {
+		var insertIdx = this.getCycleDropInsertIndex(clientY);
+		var target = {
+			insertIdx: insertIdx,
+			targetGroup: "",
+			beforeCycleIdx: null,
+			hoverRowEl: null,
+			hoverType: "insert",
+		};
+		var hover = document.elementFromPoint(clientX, clientY);
+		var rowEl = hover && hover.closest ? hover.closest("#cycles_editor .cycle_row") : null;
+		if (!rowEl) return target;
+		target.hoverRowEl = rowEl;
+		var hoverType = rowEl.getAttribute("data-type");
+		if (hoverType === "group") {
+			target.hoverType = "into-group";
+			target.targetGroup = rowEl.getAttribute("data-group") || "";
+			for (var idx = 0; idx < this.bmp.palette.cycles.length; idx++) {
+				if ((this.bmp.palette.cycles[idx].group || "") === target.targetGroup) {
+					target.beforeCycleIdx = idx;
+					break;
+				}
+			}
+			return target;
+		}
+		if (hoverType !== "cycle") return target;
+		target.hoverType = "into-group";
+		var cycleIdx = parseInt(rowEl.getAttribute("data-cycle"), 10);
+		target.targetGroup = rowEl.getAttribute("data-group") || "";
+		if (isNaN(cycleIdx)) return target;
+		var rect = rowEl.getBoundingClientRect();
+		var before = clientY < rect.top + rect.height / 2;
+		if (before) {
+			target.beforeCycleIdx = cycleIdx;
+			return target;
+		}
+		var rows = this.getDisplayCycleRows();
+		var rowPos = parseInt(rowEl.getAttribute("data-row"), 10);
+		if (isNaN(rowPos)) return target;
+		for (var i = rowPos + 1; i < rows.length; i++) {
+			if (rows[i].type !== "cycle") continue;
+			if ((rows[i].groupName || "") !== target.targetGroup) continue;
+			target.beforeCycleIdx = rows[i].cycleIdx;
+			return target;
+		}
+		return target;
+	},
+
+	showCycleDropIndicator: function (clientY, clientX) {
 		var container = $("cycles_editor");
 		if (!container) return;
 		var rows = container.querySelectorAll(".cycle_row");
 		this.clearCycleDropIndicator();
 		if (!rows.length) return;
-		var insertIdx = this.getCycleDropInsertIndex(clientY);
+		var target = this.getCycleDropTarget(clientY, clientX);
+		if (target.hoverType === "into-group" && target.hoverRowEl) {
+			target.hoverRowEl.classList.add("drop-into");
+			return;
+		}
+		var insertIdx = target.insertIdx;
 		if (insertIdx <= 0) rows[0].classList.add("drop-before");
 		else if (insertIdx >= rows.length) rows[rows.length - 1].classList.add("drop-after");
 		else rows[insertIdx].classList.add("drop-before");
@@ -1606,50 +1651,33 @@ var CanvasCycle = {
 	clearCycleDropIndicator: function () {
 		var container = $("cycles_editor");
 		if (!container) return;
-		var rows = container.querySelectorAll(".cycle_row.drop-before, .cycle_row.drop-after");
-		for (var idx = 0; idx < rows.length; idx++) rows[idx].classList.remove("drop-before", "drop-after");
+		var rows = container.querySelectorAll(".cycle_row.drop-before, .cycle_row.drop-after, .cycle_row.drop-into");
+		for (var idx = 0; idx < rows.length; idx++) rows[idx].classList.remove("drop-before", "drop-after", "drop-into");
 	},
 
-	moveGroupToDisplayIndex: function (groupName, displayIdx) {
-		if (!groupName) return;
-		var fromIdx = this.cycleGroups.indexOf(groupName);
-		if (fromIdx === -1) return;
-		var rows = this.getDisplayCycleRows();
-		var beforeGroup = null;
-		for (var i = displayIdx; i < rows.length; i++) {
-			if (rows[i].type === "group" && rows[i].groupName !== groupName) { beforeGroup = rows[i].groupName; break; }
-		}
-		this.cycleGroups.splice(fromIdx, 1);
-		var toIdx = beforeGroup ? this.cycleGroups.indexOf(beforeGroup) : this.cycleGroups.length;
-		if (toIdx < 0) toIdx = this.cycleGroups.length;
-		this.cycleGroups.splice(toIdx, 0, groupName);
-		this.markImageEdited();
-		this.renderCyclesEditor();
-		this.syncUploadedImageData();
-	},
-
-	moveCycleToDisplayIndex: function (fromIdx, displayIdx) {
+	moveCycleToPlacement: function (fromIdx, target) {
 		var cycles = this.bmp && this.bmp.palette ? this.bmp.palette.cycles : null;
 		if (!cycles || isNaN(fromIdx) || fromIdx < 0 || fromIdx >= cycles.length) return;
-		var rows = this.getDisplayCycleRows();
-		var targetGroup = "";
-		var prev = displayIdx > 0 ? rows[displayIdx - 1] : null;
-		var next = displayIdx < rows.length ? rows[displayIdx] : null;
-		if (prev && prev.type === "group") targetGroup = prev.groupName;
-		else if (prev && prev.type === "cycle") targetGroup = cycles[prev.cycleIdx].group || "";
-		else if (next && next.type === "cycle") targetGroup = cycles[next.cycleIdx].group || "";
+		target = target || { insertIdx: cycles.length, targetGroup: "", beforeCycleIdx: null, hoverType: "insert" };
+		var targetGroup = target.hoverType === "into-group" ? (target.targetGroup || "") : "";
+		var beforeCycleIdx = null;
+		if (target.hoverType === "into-group") {
+			beforeCycleIdx = target.beforeCycleIdx;
+		}
+		else {
+			var rows = this.getDisplayCycleRows();
+			for (var i = target.insertIdx; i < rows.length; i++) {
+				if (rows[i].type !== "cycle") continue;
+				if (rows[i].cycleIdx === fromIdx) continue;
+				beforeCycleIdx = rows[i].cycleIdx;
+				break;
+			}
+		}
 		var moved = cycles.splice(fromIdx, 1)[0];
 		moved.group = targetGroup;
-		var beforeCycle = null;
-		for (var i = displayIdx; i < rows.length; i++) {
-			if (rows[i].type !== "cycle") continue;
-			if (rows[i].cycleIdx === fromIdx) continue;
-			beforeCycle = rows[i].cycleIdx;
-			if (rows[i].cycleIdx > fromIdx) beforeCycle--;
-			break;
-		}
-		if (beforeCycle === null) cycles.push(moved);
-		else cycles.splice(Math.max(0, beforeCycle), 0, moved);
+		if (beforeCycleIdx !== null && beforeCycleIdx > fromIdx) beforeCycleIdx--;
+		if (beforeCycleIdx === null) cycles.push(moved);
+		else cycles.splice(Math.max(0, beforeCycleIdx), 0, moved);
 		this.bmp.palette.numCycles = cycles.length;
 		this.bmp.optimize();
 		this.markImageEdited();
@@ -2007,6 +2035,7 @@ var CanvasCycle = {
 			colors: this.bmp.palette.baseColors.map(function (c) {
 				return [c.red, c.green, c.blue];
 			}),
+			groups: this.cycleGroups.slice(0),
 			cycles: this.bmp.palette.cycles.map(function (c) {
 				return {
 					low: c.low,
@@ -2015,6 +2044,7 @@ var CanvasCycle = {
 					reverse: c.reverse ? 1 : 0,
 					active: c.active !== false,
 					name: typeof c.name === "string" ? c.name.slice(0, 32) : "",
+					group: typeof c.group === "string" ? c.group : "",
 				};
 			}),
 		};
