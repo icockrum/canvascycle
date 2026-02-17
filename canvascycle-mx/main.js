@@ -1175,7 +1175,44 @@ var CanvasCycle = {
 			});
 	},
 
+	normalizeIncomingImageData: function (img) {
+		if (!img) return img;
+		if (!img.colors) img.colors = [];
+		for (var idx = 0; idx < 256; idx++) {
+			var clr = img.colors[idx];
+			if (!clr || clr.length < 3) img.colors[idx] = [255, 255, 255];
+			else
+				img.colors[idx] = [
+					Math.max(0, Math.min(255, clr[0] | 0)),
+					Math.max(0, Math.min(255, clr[1] | 0)),
+					Math.max(0, Math.min(255, clr[2] | 0)),
+				];
+		}
+		img.colors.length = 256;
+		return img;
+	},
+
+	resetPaletteDisplay: function () {
+		for (var idx = 0; idx < 256; idx++) {
+			var chip = $("pal_" + idx);
+			if (!chip) continue;
+			chip.style.backgroundColor = "rgb(255,255,255)";
+		}
+	},
+
+	showTransparencyWarning: function () {
+		var modal = $("transparency_warning_modal");
+		if (modal) modal.setClass("hidden", false);
+	},
+
+	cancelTransparencyWarning: function () {
+		var modal = $("transparency_warning_modal");
+		if (modal) modal.setClass("hidden", true);
+	},
+
 	processImage: function (img) {
+		img = this.normalizeIncomingImageData(img);
+		this.resetPaletteDisplay();
 		this.sourceImageData = img;
 		this.cycleGroups = this.buildCycleGroupList(img);
 		this.cycleRowOrder = this.buildCycleRowOrder(img);
@@ -1277,9 +1314,10 @@ var CanvasCycle = {
 	animate: function () {
 		if (!this.inGame || !this.bmp) return;
 		var colors = this.bmp.palette.colors;
-		for (var idx = 0; idx < colors.length; idx++) {
-			var clr = colors[idx],
+		for (var idx = 0; idx < 256; idx++) {
+			var clr = colors[idx] || this.bmp.palette.baseColors[idx] || { red: 255, green: 255, blue: 255 },
 				div = $("pal_" + idx);
+			if (!div) continue;
 			div.style.backgroundColor =
 				"rgb(" + clr.red + "," + clr.green + "," + clr.blue + ")";
 		}
@@ -2180,6 +2218,15 @@ var CanvasCycle = {
 				var png = UPNG.decode(reader.result);
 				if (png.ctype !== 3 || !png.tabs || !png.tabs.PLTE)
 					throw new Error("PNG must be indexed with PLTE palette");
+				var trns = png.tabs.tRNS;
+				if (trns && trns.length) {
+					for (var ta = 0; ta < trns.length; ta++) {
+						if (trns[ta] < 255) {
+							CanvasCycle.showTransparencyWarning();
+							break;
+						}
+					}
+				}
 				var colors = [];
 				for (var i = 0; i < png.tabs.PLTE.length; i += 3)
 					colors.push([
