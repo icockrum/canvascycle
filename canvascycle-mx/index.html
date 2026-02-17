@@ -320,6 +320,20 @@
 			</div>
 		</div>
 
+		<div id="group_warning_modal" class="modal hidden">
+			<div class="modal-card">
+				<p>Group contains cycle data.</p>
+				<div class="modal-actions">
+					<button class="button" type="button" onClick="CC.cancelGroupDelete()">
+						Cancel
+					</button>
+					<button class="button primary" type="button" onClick="CC.confirmGroupDelete()">
+						Proceed
+					</button>
+				</div>
+			</div>
+		</div>
+
 		<div id="scene_modal" class="modal hidden">
 			<div class="modal-card">
 				<p>Edits to the current image will be lost.</p>
