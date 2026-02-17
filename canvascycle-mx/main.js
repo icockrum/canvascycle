@@ -64,6 +64,7 @@ var CanvasCycle = {
 	cycleFieldBlurTimer: null,
 	currentCycleDragType: "",
 	cycleGroups: [],
+	cycleRowOrder: [],
 	collapsedCycleGroups: {},
 	pendingGroupDeleteName: "",
 	pendingPaletteSortMode: "",
@@ -1177,6 +1178,7 @@ var CanvasCycle = {
 	processImage: function (img) {
 		this.sourceImageData = img;
 		this.cycleGroups = this.buildCycleGroupList(img);
+		this.cycleRowOrder = this.buildCycleRowOrder(img);
 		this.collapsedCycleGroups = {};
 		this.pendingGroupDeleteName = "";
 		this.bmp = new Bitmap(img);
@@ -1380,23 +1382,117 @@ var CanvasCycle = {
 		return candidate + "-" + num;
 	},
 
+	buildCycleRowOrder: function (img) {
+		var order = [];
+		var cycles = img && img.cycles ? img.cycles : [];
+		var groups = this.buildCycleGroupList(img);
+		var groupUsed = {};
+		if (img && img.cycleRowOrder && img.cycleRowOrder.length) {
+			for (var i = 0; i < img.cycleRowOrder.length; i++) {
+				var tok = img.cycleRowOrder[i];
+				if (tok === "s") order.push("s");
+				else if (typeof tok === "string" && tok.indexOf("g:") === 0) {
+					var gname = tok.slice(2);
+					if (gname && groups.indexOf(gname) > -1 && !groupUsed[gname]) {
+						order.push(tok);
+						groupUsed[gname] = 1;
+					}
+				}
+			}
+		}
+		var singleCount = 0;
+		for (var c = 0; c < cycles.length; c++) {
+			var g = typeof cycles[c].group === "string" ? cycles[c].group.trim() : "";
+			if (!g) singleCount++;
+		}
+		var existingSingles = order.filter(function (t) { return t === "s"; }).length;
+		while (existingSingles < singleCount) { order.push("s"); existingSingles++; }
+		for (var gi = 0; gi < groups.length; gi++) {
+			if (!groupUsed[groups[gi]]) order.push("g:" + groups[gi]);
+		}
+		return order;
+	},
+
+	normalizeCycleRowOrder: function () {
+		if (!this.bmp) { this.cycleRowOrder = []; return; }
+		var groups = this.cycleGroups.slice(0);
+		var groupUsed = {};
+		var order = [];
+		for (var i = 0; i < this.cycleRowOrder.length; i++) {
+			var tok = this.cycleRowOrder[i];
+			if (tok === "s") order.push("s");
+			else if (typeof tok === "string" && tok.indexOf("g:") === 0) {
+				var name = tok.slice(2);
+				if (groups.indexOf(name) > -1 && !groupUsed[name]) {
+					order.push(tok);
+					groupUsed[name] = 1;
+				}
+			}
+		}
+		var singleCount = 0;
+		for (var c = 0; c < this.bmp.palette.cycles.length; c++) {
+			if (!(this.bmp.palette.cycles[c].group || "")) singleCount++;
+		}
+		var existingSingles = order.filter(function (t) { return t === "s"; }).length;
+		while (existingSingles > singleCount) {
+			var idx = order.lastIndexOf("s");
+			if (idx < 0) break;
+			order.splice(idx, 1);
+			existingSingles--;
+		}
+		while (existingSingles < singleCount) { order.push("s"); existingSingles++; }
+		for (var gi = 0; gi < groups.length; gi++) if (!groupUsed[groups[gi]]) order.push("g:" + groups[gi]);
+		this.cycleRowOrder = order;
+	},
+
+	getRowOrderIndexForDisplayInsert: function (displayInsertIdx) {
+		var rows = this.getDisplayCycleRows();
+		displayInsertIdx = Math.max(0, Math.min(rows.length, displayInsertIdx));
+		var count = 0;
+		for (var i = 0; i < displayInsertIdx; i++) {
+			var r = rows[i];
+			if (r.type === "group" || !r.groupName) count++;
+		}
+		return count;
+	},
+
 	getDisplayCycleRows: function () {
 		var rows = [];
 		var cycles = this.bmp && this.bmp.palette ? this.bmp.palette.cycles : [];
+		var ungrouped = [];
 		for (var idx = 0; idx < cycles.length; idx++) {
 			var cyc = cycles[idx];
 			if (typeof cyc.group !== "string") cyc.group = "";
 			cyc.group = cyc.group.trim();
-			if (!cyc.group) rows.push({ type: "cycle", cycleIdx: idx, groupName: "" });
+			if (!cyc.group) ungrouped.push(idx);
 		}
-		for (var gidx = 0; gidx < this.cycleGroups.length; gidx++) {
-			var groupName = this.cycleGroups[gidx];
+		this.normalizeCycleRowOrder();
+		var singleCursor = 0;
+		for (var oi = 0; oi < this.cycleRowOrder.length; oi++) {
+			var token = this.cycleRowOrder[oi];
+			if (token === "s") {
+				if (singleCursor < ungrouped.length)
+					rows.push({ type: "cycle", cycleIdx: ungrouped[singleCursor++], groupName: "" });
+				continue;
+			}
+			if (typeof token !== "string" || token.indexOf("g:") !== 0) continue;
+			var groupName = token.slice(2);
+			var gidx = this.cycleGroups.indexOf(groupName);
+			if (gidx < 0) continue;
 			rows.push({ type: "group", groupName: groupName, groupIdx: gidx, tone: gidx % 2 });
 			if (this.collapsedCycleGroups[groupName]) continue;
-			for (var c = 0; c < cycles.length; c++) {
-				if ((cycles[c].group || "") === groupName)
-					rows.push({ type: "cycle", cycleIdx: c, groupName: groupName, tone: gidx % 2 });
-			}
+			for (var c = 0; c < cycles.length; c++) if ((cycles[c].group || "") === groupName)
+				rows.push({ type: "cycle", cycleIdx: c, groupName: groupName, tone: gidx % 2 });
+		}
+		while (singleCursor < ungrouped.length) rows.push({ type: "cycle", cycleIdx: ungrouped[singleCursor++], groupName: "" });
+		for (var g = 0; g < this.cycleGroups.length; g++) {
+			var name = this.cycleGroups[g];
+			var found = false;
+			for (var r = 0; r < rows.length; r++) if (rows[r].type === "group" && rows[r].groupName === name) { found = true; break; }
+			if (found) continue;
+			rows.push({ type: "group", groupName: name, groupIdx: g, tone: g % 2 });
+			if (!this.collapsedCycleGroups[name]) for (var ci = 0; ci < cycles.length; ci++) if ((cycles[ci].group || "") === name)
+				rows.push({ type: "cycle", cycleIdx: ci, groupName: name, tone: g % 2 });
 		}
 		return rows;
 	},
@@ -1465,8 +1561,8 @@ var CanvasCycle = {
 			if (!t || t.getAttribute("data-action") !== "drag") { e.preventDefault(); return; }
 			e.dataTransfer.effectAllowed = "move";
 			CanvasCycle.currentCycleDragType = t.getAttribute("data-type") || "";
-			e.dataTransfer.setData("text/plain", JSON.stringify({ type: t.getAttribute("data-type"), cycle: t.getAttribute("data-cycle"), group: t.getAttribute("data-group") }));
 			var dragRow = t.closest(".cycle_row");
+			e.dataTransfer.setData("text/plain", JSON.stringify({ type: t.getAttribute("data-type"), cycle: t.getAttribute("data-cycle"), group: t.getAttribute("data-group"), row: (dragRow && dragRow.getAttribute("data-row")) || "" }));
 			if (dragRow) dragRow.classList.add("dragging");
 		};
 		container.ondragover = function (e) {
@@ -1484,7 +1580,7 @@ var CanvasCycle = {
 			CanvasCycle.clearCycleDropIndicator();
 			if (!drag) return;
 			if (drag.type === "group") CanvasCycle.moveGroupToDisplayIndex(drag.group, target.insertIdx);
-			else CanvasCycle.moveCycleToPlacement(parseInt(drag.cycle, 10), target);
+			else CanvasCycle.moveCycleToPlacement(parseInt(drag.cycle, 10), target, parseInt(drag.row, 10));
 		};
 		container.ondragend = function () {
 			var dragging = container.querySelectorAll(".cycle_row.dragging");
@@ -1571,6 +1667,9 @@ var CanvasCycle = {
 			this.cycleGroups[idx] = unique;
 			for (var c = 0; c < this.bmp.palette.cycles.length; c++) {
 				if ((this.bmp.palette.cycles[c].group || "") === oldName) this.bmp.palette.cycles[c].group = unique;
+			}
+			for (var oi = 0; oi < this.cycleRowOrder.length; oi++) {
+				if (this.cycleRowOrder[oi] === "g:" + oldName) this.cycleRowOrder[oi] = "g:" + unique;
 			}
 			if (this.collapsedCycleGroups[oldName]) this.collapsedCycleGroups[unique] = true;
 			delete this.collapsedCycleGroups[oldName];
@@ -1695,15 +1794,29 @@ var CanvasCycle = {
 		for (var idx = 0; idx < rows.length; idx++) rows[idx].classList.remove("drop-before", "drop-after", "drop-into");
 	},
 
-	moveCycleToPlacement: function (fromIdx, target) {
+	moveCycleToPlacement: function (fromIdx, target, fromRowIdx) {
 		var cycles = this.bmp && this.bmp.palette ? this.bmp.palette.cycles : null;
 		if (!cycles || isNaN(fromIdx) || fromIdx < 0 || fromIdx >= cycles.length) return;
 		target = target || { insertIdx: cycles.length, targetGroup: "", beforeCycleIdx: null, hoverType: "insert" };
+		this.normalizeCycleRowOrder();
+
+		var fromCycle = cycles[fromIdx];
+		var wasUngrouped = !(fromCycle.group || "");
+		var rowOrderInsertIdx = this.getRowOrderIndexForDisplayInsert(target.insertIdx);
+		if (wasUngrouped && !isNaN(fromRowIdx)) {
+			var fromRowOrderIdx = this.getRowOrderIndexForDisplayInsert(fromRowIdx);
+			if (fromRowOrderIdx < rowOrderInsertIdx) rowOrderInsertIdx--;
+			if (fromRowOrderIdx >= 0 && fromRowOrderIdx < this.cycleRowOrder.length && this.cycleRowOrder[fromRowOrderIdx] === "s")
+				this.cycleRowOrder.splice(fromRowOrderIdx, 1);
+			else {
+				var sidx = this.cycleRowOrder.indexOf("s");
+				if (sidx > -1) this.cycleRowOrder.splice(sidx, 1);
+			}
+		}
+
 		var targetGroup = target.hoverType === "into-group" ? (target.targetGroup || "") : "";
 		var beforeCycleIdx = null;
-		if (target.hoverType === "into-group") {
-			beforeCycleIdx = target.beforeCycleIdx;
-		}
+		if (target.hoverType === "into-group") beforeCycleIdx = target.beforeCycleIdx;
 		else {
 			var rows = this.getDisplayCycleRows();
 			for (var i = target.insertIdx; i < rows.length; i++) {
@@ -1718,6 +1831,12 @@ var CanvasCycle = {
 		if (beforeCycleIdx !== null && beforeCycleIdx > fromIdx) beforeCycleIdx--;
 		if (beforeCycleIdx === null) cycles.push(moved);
 		else cycles.splice(Math.max(0, beforeCycleIdx), 0, moved);
+
+		if (!targetGroup) {
+			rowOrderInsertIdx = Math.max(0, Math.min(this.cycleRowOrder.length, rowOrderInsertIdx));
+			this.cycleRowOrder.splice(rowOrderInsertIdx, 0, "s");
+		}
+		this.normalizeCycleRowOrder();
 		this.bmp.palette.numCycles = cycles.length;
 		this.bmp.optimize();
 		this.markImageEdited();
@@ -1728,21 +1847,15 @@ var CanvasCycle = {
 
 	moveGroupToDisplayIndex: function (groupName, displayIdx) {
 		if (!groupName) return;
-		var fromIdx = this.cycleGroups.indexOf(groupName);
-		if (fromIdx === -1) return;
-		var rows = this.getDisplayCycleRows();
-		displayIdx = Math.max(0, Math.min(rows.length, displayIdx));
-		var beforeGroup = null;
-		for (var i = displayIdx; i < rows.length; i++) {
-			if (rows[i].type === "group" && rows[i].groupName !== groupName) {
-				beforeGroup = rows[i].groupName;
-				break;
-			}
-		}
-		this.cycleGroups.splice(fromIdx, 1);
-		var toIdx = beforeGroup ? this.cycleGroups.indexOf(beforeGroup) : this.cycleGroups.length;
-		if (toIdx < 0) toIdx = this.cycleGroups.length;
-		this.cycleGroups.splice(toIdx, 0, groupName);
+		this.normalizeCycleRowOrder();
+		var token = "g:" + groupName;
+		var fromOrderIdx = this.cycleRowOrder.indexOf(token);
+		if (fromOrderIdx < 0) return;
+		var toOrderIdx = this.getRowOrderIndexForDisplayInsert(displayIdx);
+		if (fromOrderIdx < toOrderIdx) toOrderIdx--;
+		this.cycleRowOrder.splice(fromOrderIdx, 1);
+		toOrderIdx = Math.max(0, Math.min(this.cycleRowOrder.length, toOrderIdx));
+		this.cycleRowOrder.splice(toOrderIdx, 0, token);
 		this.markImageEdited();
 		this.renderCyclesEditor();
 		this.syncUploadedImageData();
@@ -1770,9 +1883,11 @@ var CanvasCycle = {
 	removeGroup: function (name) {
 		if (!name) return;
 		this.cycleGroups = this.cycleGroups.filter(function (g) { return g !== name; });
+		this.cycleRowOrder = this.cycleRowOrder.filter(function (tok) { return tok !== "g:" + name; });
 		delete this.collapsedCycleGroups[name];
 		this.bmp.palette.cycles = this.bmp.palette.cycles.filter(function (cyc) { return (cyc.group || "") !== name; });
 		this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
+		this.normalizeCycleRowOrder();
 		this.bmp.optimize();
 		this.markImageEdited();
 		this.renderCyclesEditor();
@@ -1803,7 +1918,9 @@ var CanvasCycle = {
 		var base = "group-" + (this.cycleGroups.length + 1);
 		var name = this.handleGroupNameCollision(base);
 		this.cycleGroups.push(name);
+		this.cycleRowOrder.push("g:" + name);
 		this.collapsedCycleGroups[name] = false;
+		this.normalizeCycleRowOrder();
 		this.markImageEdited();
 		this.renderCyclesEditor();
 		this.syncUploadedImageData();
@@ -1859,6 +1976,8 @@ var CanvasCycle = {
 		if (!this.bmp) return;
 		this.bmp.palette.cycles.push(new Cycle(280, 0, 0, 0, true, "", ""));
 		this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
+		this.cycleRowOrder.push("s");
+		this.normalizeCycleRowOrder();
 		this.bmp.optimize();
 		this.markImageEdited();
 		this.renderCyclesEditor();
@@ -1868,7 +1987,13 @@ var CanvasCycle = {
 	removeCycle: function (cycleIdx) {
 		if (!this.bmp || !this.bmp.palette.cycles.length) return;
 		if (isNaN(cycleIdx) || cycleIdx < 0 || cycleIdx >= this.bmp.palette.cycles.length) return;
+		var wasUngrouped = !(this.bmp.palette.cycles[cycleIdx].group || "");
 		this.bmp.palette.cycles.splice(cycleIdx, 1);
+		if (wasUngrouped) {
+			var sidx = this.cycleRowOrder.lastIndexOf("s");
+			if (sidx > -1) this.cycleRowOrder.splice(sidx, 1);
+		}
+		this.normalizeCycleRowOrder();
 		this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
 		this.bmp.optimize();
 		this.markImageEdited();
@@ -1884,6 +2009,7 @@ var CanvasCycle = {
 				return [c.red, c.green, c.blue];
 			}),
 			groups: this.cycleGroups.slice(0),
+			cycleRowOrder: this.cycleRowOrder.slice(0),
 			cycles: this.bmp.palette.cycles.map(function (c) {
 				return {
 					low: c.low,
@@ -1900,12 +2026,14 @@ var CanvasCycle = {
 			this.sourceImageData.pixels = payload.pixels;
 			this.sourceImageData.colors = payload.colors;
 			this.sourceImageData.groups = payload.groups;
+			this.sourceImageData.cycleRowOrder = payload.cycleRowOrder;
 			this.sourceImageData.cycles = payload.cycles;
 		}
 		if (this.uploadedImageData) {
 			this.uploadedImageData.pixels = payload.pixels;
 			this.uploadedImageData.colors = payload.colors;
 			this.uploadedImageData.groups = payload.groups;
+			this.uploadedImageData.cycleRowOrder = payload.cycleRowOrder;
 			this.uploadedImageData.cycles = payload.cycles;
 		}
 	},
@@ -2098,6 +2226,7 @@ var CanvasCycle = {
 				return [c.red, c.green, c.blue];
 			}),
 			groups: this.cycleGroups.slice(0),
+			cycleRowOrder: this.cycleRowOrder.slice(0),
 			cycles: this.bmp.palette.cycles.map(function (c) {
 				return {
 					low: c.low,
