@@ -62,6 +62,11 @@ var CanvasCycle = {
 	zoomDrag: null,
 	cycleTimeOffset: 0,
 	cycleFieldBlurTimer: null,
+	currentCycleDragType: "",
+	cycleGroups: [],
+	cycleRowOrder: [],
+	collapsedCycleGroups: {},
+	pendingGroupDeleteName: "",
 	pendingPaletteSortMode: "",
 	paletteEditColorIdx: -1,
 	paletteColorInputEl: null,
@@ -1172,6 +1177,10 @@ var CanvasCycle = {
 
 	processImage: function (img) {
 		this.sourceImageData = img;
+		this.cycleGroups = this.buildCycleGroupList(img);
+		this.cycleRowOrder = this.buildCycleRowOrder(img);
+		this.collapsedCycleGroups = {};
+		this.pendingGroupDeleteName = "";
 		this.bmp = new Bitmap(img);
 		this.bmp.optimize();
 		var canvas = $("mycanvas");
@@ -1340,135 +1349,265 @@ var CanvasCycle = {
 			}, 1000 / this.settings.targetFPS);
 	},
 
+	buildCycleGroupList: function (img) {
+		var names = [];
+		var used = {};
+		var initial = img && img.groups && img.groups.length ? img.groups : [];
+		for (var i = 0; i < initial.length; i++) {
+			var name = typeof initial[i] === "string" ? initial[i].trim() : "";
+			if (!name || used[name]) continue;
+			used[name] = 1;
+			names.push(name);
+		}
+		var cycles = img && img.cycles ? img.cycles : [];
+		for (var cidx = 0; cidx < cycles.length; cidx++) {
+			var group = typeof cycles[cidx].group === "string" ? cycles[cidx].group.trim() : "";
+			if (!group || used[group]) continue;
+			used[group] = 1;
+			names.push(group);
+		}
+		return names;
+	},
+
+	makeUniqueGroupName: function (base, excludeName) {
+		var candidate = (base || "").trim() || "group";
+		if (candidate.length > 32) candidate = candidate.slice(0, 32);
+		var used = {};
+		for (var idx = 0; idx < this.cycleGroups.length; idx++) {
+			if (this.cycleGroups[idx] !== excludeName) used[this.cycleGroups[idx]] = 1;
+		}
+		if (!used[candidate]) return candidate;
+		var num = 1;
+		while (used[candidate + "-" + num]) num++;
+		return candidate + "-" + num;
+	},
+
+	buildCycleRowOrder: function (img) {
+		var order = [];
+		var cycles = img && img.cycles ? img.cycles : [];
+		var groups = this.buildCycleGroupList(img);
+		var groupUsed = {};
+		if (img && img.cycleRowOrder && img.cycleRowOrder.length) {
+			for (var i = 0; i < img.cycleRowOrder.length; i++) {
+				var tok = img.cycleRowOrder[i];
+				if (tok === "s") order.push("s");
+				else if (typeof tok === "string" && tok.indexOf("g:") === 0) {
+					var gname = tok.slice(2);
+					if (gname && groups.indexOf(gname) > -1 && !groupUsed[gname]) {
+						order.push(tok);
+						groupUsed[gname] = 1;
+					}
+				}
+			}
+		}
+		var singleCount = 0;
+		for (var c = 0; c < cycles.length; c++) {
+			var g = typeof cycles[c].group === "string" ? cycles[c].group.trim() : "";
+			if (!g) singleCount++;
+		}
+		var existingSingles = order.filter(function (t) { return t === "s"; }).length;
+		while (existingSingles < singleCount) { order.push("s"); existingSingles++; }
+		for (var gi = 0; gi < groups.length; gi++) {
+			if (!groupUsed[groups[gi]]) order.push("g:" + groups[gi]);
+		}
+		return order;
+	},
+
+	normalizeCycleRowOrder: function () {
+		if (!this.bmp) { this.cycleRowOrder = []; return; }
+		var groups = this.cycleGroups.slice(0);
+		var groupUsed = {};
+		var order = [];
+		for (var i = 0; i < this.cycleRowOrder.length; i++) {
+			var tok = this.cycleRowOrder[i];
+			if (tok === "s") order.push("s");
+			else if (typeof tok === "string" && tok.indexOf("g:") === 0) {
+				var name = tok.slice(2);
+				if (groups.indexOf(name) > -1 && !groupUsed[name]) {
+					order.push(tok);
+					groupUsed[name] = 1;
+				}
+			}
+		}
+		var singleCount = 0;
+		for (var c = 0; c < this.bmp.palette.cycles.length; c++) {
+			if (!(this.bmp.palette.cycles[c].group || "")) singleCount++;
+		}
+		var existingSingles = order.filter(function (t) { return t === "s"; }).length;
+		while (existingSingles > singleCount) {
+			var idx = order.lastIndexOf("s");
+			if (idx < 0) break;
+			order.splice(idx, 1);
+			existingSingles--;
+		}
+		while (existingSingles < singleCount) { order.push("s"); existingSingles++; }
+		for (var gi = 0; gi < groups.length; gi++) if (!groupUsed[groups[gi]]) order.push("g:" + groups[gi]);
+		this.cycleRowOrder = order;
+	},
+
+	getRowOrderIndexForDisplayInsert: function (displayInsertIdx) {
+		var rows = this.getDisplayCycleRows();
+		displayInsertIdx = Math.max(0, Math.min(rows.length, displayInsertIdx));
+		var count = 0;
+		for (var i = 0; i < displayInsertIdx; i++) {
+			var r = rows[i];
+			if (r.type === "group" || !r.groupName) count++;
+		}
+		return count;
+	},
+
+	getDisplayCycleRows: function () {
+		var rows = [];
+		var cycles = this.bmp && this.bmp.palette ? this.bmp.palette.cycles : [];
+		var ungrouped = [];
+		for (var idx = 0; idx < cycles.length; idx++) {
+			var cyc = cycles[idx];
+			if (typeof cyc.group !== "string") cyc.group = "";
+			cyc.group = cyc.group.trim();
+			if (!cyc.group) ungrouped.push(idx);
+		}
+		this.normalizeCycleRowOrder();
+		var singleCursor = 0;
+		for (var oi = 0; oi < this.cycleRowOrder.length; oi++) {
+			var token = this.cycleRowOrder[oi];
+			if (token === "s") {
+				if (singleCursor < ungrouped.length)
+					rows.push({ type: "cycle", cycleIdx: ungrouped[singleCursor++], groupName: "" });
+				continue;
+			}
+			if (typeof token !== "string" || token.indexOf("g:") !== 0) continue;
+			var groupName = token.slice(2);
+			var gidx = this.cycleGroups.indexOf(groupName);
+			if (gidx < 0) continue;
+			rows.push({ type: "group", groupName: groupName, groupIdx: gidx, tone: gidx % 2 });
+			if (this.collapsedCycleGroups[groupName]) continue;
+			for (var c = 0; c < cycles.length; c++) if ((cycles[c].group || "") === groupName)
+				rows.push({ type: "cycle", cycleIdx: c, groupName: groupName, tone: gidx % 2 });
+		}
+		while (singleCursor < ungrouped.length) rows.push({ type: "cycle", cycleIdx: ungrouped[singleCursor++], groupName: "" });
+		for (var g = 0; g < this.cycleGroups.length; g++) {
+			var name = this.cycleGroups[g];
+			var found = false;
+			for (var r = 0; r < rows.length; r++) if (rows[r].type === "group" && rows[r].groupName === name) { found = true; break; }
+			if (found) continue;
+			rows.push({ type: "group", groupName: name, groupIdx: g, tone: g % 2 });
+			if (!this.collapsedCycleGroups[name]) for (var ci = 0; ci < cycles.length; ci++) if ((cycles[ci].group || "") === name)
+				rows.push({ type: "cycle", cycleIdx: ci, groupName: name, tone: g % 2 });
+		}
+		return rows;
+	},
+
 	renderCyclesEditor: function () {
 		var container = $("cycles_editor");
 		container.innerHTML = "";
 		if (!this.bmp) return;
-		for (var idx = 0; idx < this.bmp.palette.cycles.length; idx++) {
-			var cyc = this.bmp.palette.cycles[idx];
+		var rows = this.getDisplayCycleRows();
+		for (var ridx = 0; ridx < rows.length; ridx++) {
+			var rowInfo = rows[ridx];
 			var row = document.createElement("div");
-			row.className = "cycle_row";
-			row.setAttribute("data-cycle", idx);
+			var toneClass = rowInfo.groupName ? " cycle_group_tone_" + rowInfo.tone : "";
+			var groupBlockClass = "";
+			if (rowInfo.groupName) {
+				groupBlockClass = " cycle_group_block";
+				var prevGroup = ridx > 0 ? rows[ridx - 1].groupName || "" : "";
+				var nextGroup = ridx + 1 < rows.length ? rows[ridx + 1].groupName || "" : "";
+				if (prevGroup !== rowInfo.groupName) groupBlockClass += " cycle_group_block_start";
+				if (nextGroup !== rowInfo.groupName) groupBlockClass += " cycle_group_block_end";
+			}
+			row.className = "cycle_row" + (rowInfo.type === "group" ? " cycle_group_row" : "") + toneClass + groupBlockClass;
+			row.setAttribute("data-row", ridx);
+			row.setAttribute("data-type", rowInfo.type);
+			row.setAttribute("data-group", rowInfo.groupName || "");
+			if (rowInfo.type === "group") {
+				var name = rowInfo.groupName;
+				var children = this.bmp.palette.cycles.filter(function (cyc) { return (cyc.group || "") === name; });
+				var allActive = children.length ? children.every(function (c) { return c.active !== false; }) : true;
+				var someActive = children.some(function (c) { return c.active !== false; });
+				row.innerHTML =
+					'<div class="cycle_drag" draggable="true" data-action="drag" data-type="group" data-group="' + escapeTextFieldValue(name) + '" title="Drag to reorder"></div>' +
+					'<label class="cycle_field cycle_active"><input type="checkbox" data-type="group" data-group="' + escapeTextFieldValue(name) + '" data-key="active"' + (allActive ? ' checked="checked"' : '') + '></label>' +
+					'<div class="cycle_group_toggle" data-action="toggle-group" data-group="' + escapeTextFieldValue(name) + '">' + (this.collapsedCycleGroups[name] ? '▶' : '▼') + '</div>' +
+					'<div class="cycle_group_name" data-action="edit-group" data-group="' + escapeTextFieldValue(name) + '"><span>' + escapeTextFieldValue(name) + '</span><input class="group_name_input" type="text" maxlength="32" data-key="group-name" data-group="' + escapeTextFieldValue(name) + '" value="' + escapeTextFieldValue(name) + '"></div>' +
+					'<div class="button cycle_remove" data-action="remove-group" data-group="' + escapeTextFieldValue(name) + '">x</div>';
+				container.appendChild(row);
+				var box = row.querySelector('input[data-key="active"]');
+				if (box) box.indeterminate = children.length > 0 && someActive && !allActive;
+				continue;
+			}
+			var idx = rowInfo.cycleIdx;
+			var cyc = this.bmp.palette.cycles[idx];
 			if (cyc.reverse === 2) cyc.reverse = 1;
 			cyc.reverse = cyc.reverse ? 1 : 0;
 			if (typeof cyc.name !== "string") cyc.name = "";
+			row.setAttribute("data-cycle", idx);
 			row.innerHTML =
-				'<div class="cycle_drag" draggable="true" data-action="drag" data-cycle="' +
-				idx +
-				'" title="Drag to reorder"></div>' +
-				'<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' +
-				idx +
-				'" data-key="active"' +
-				(cyc.active === false ? "" : ' checked="checked"') +
-				'"></label>' +
-				'<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' +
-				idx +
-				'" data-key="low" value="' +
-				cyc.low +
-				'"></label>' +
-				'<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' +
-				idx +
-				'" data-key="high" value="' +
-				cyc.high +
-				'"></label>' +
-				'<label class="cycle_field"><input type="number" data-cycle="' +
-				idx +
-				'" data-key="rate" value="' +
-				cyc.rate +
-				'"></label>' +
-				'<label class="cycle_field cycle_reverse"><input type="checkbox" data-cycle="' +
-				idx +
-				'" data-key="reverse"' +
-				(cyc.reverse ? ' checked="checked"' : "") +
-				"></label>" +
-				'<label class="cycle_field cycle_name"><input type="text" maxlength="32" data-cycle="' +
-				idx +
-				'" data-key="name" value="' +
-				escapeTextFieldValue(cyc.name) +
-				'" placeholder="Cycle name"></label>' +
-				'<div class="button cycle_remove" data-action="remove" data-cycle="' +
-				idx +
-				'">x</div>';
-			row.ondragstart = function (e) {
-				var targetTag = e.target && e.target.tagName;
-				if (targetTag === "INPUT" || targetTag === "SELECT") {
-					e.preventDefault();
-					return;
-				}
-				e.dataTransfer.effectAllowed = "move";
-				e.dataTransfer.setData("text/plain", this.getAttribute("data-cycle"));
-				this.classList.add("dragging");
-			};
-			row.ondragend = function () {
-				this.classList.remove("dragging");
-			};
-			row.ondragover = function (e) {
-				e.preventDefault();
-				e.dataTransfer.dropEffect = "move";
-			};
-			row.ondrop = function (e) {
-				e.preventDefault();
-				var fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
-				var toIdx = parseInt(this.getAttribute("data-cycle"), 10);
-				CanvasCycle.reorderCycles(fromIdx, toIdx);
-			};
-
-			var cycleRangeFields = row.querySelectorAll(
-				'input[data-key="low"], input[data-key="high"]',
-			);
+				'<div class="cycle_drag" draggable="true" data-action="drag" data-type="cycle" data-cycle="' + idx + '" title="Drag to reorder"></div>' +
+				'<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' + idx + '" data-key="active"' + (cyc.active === false ? "" : ' checked="checked"') + '></label>' +
+				'<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' + idx + '" data-key="low" value="' + cyc.low + '"></label>' +
+				'<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' + idx + '" data-key="high" value="' + cyc.high + '"></label>' +
+				'<label class="cycle_field"><input type="number" data-cycle="' + idx + '" data-key="rate" value="' + cyc.rate + '"></label>' +
+				'<label class="cycle_field cycle_reverse"><input type="checkbox" data-cycle="' + idx + '" data-key="reverse"' + (cyc.reverse ? ' checked="checked"' : '') + '></label>' +
+				'<label class="cycle_field cycle_name"><input type="text" maxlength="32" data-cycle="' + idx + '" data-key="name" value="' + escapeTextFieldValue(cyc.name) + '" placeholder="Cycle name"></label>' +
+				'<div class="button cycle_remove" data-action="remove" data-cycle="' + idx + '">x</div>';
+			var cycleRangeFields = row.querySelectorAll('input[data-key="low"], input[data-key="high"]');
 			for (var fieldIdx = 0; fieldIdx < cycleRangeFields.length; fieldIdx++) {
-				cycleRangeFields[fieldIdx].onfocus = function () {
-					CanvasCycle.handleCycleRangeFieldFocus(this);
-				};
-				cycleRangeFields[fieldIdx].onblur = function (e) {
-					CanvasCycle.handleCycleRangeFieldBlur(e);
-				};
+				cycleRangeFields[fieldIdx].onfocus = function () { CanvasCycle.handleCycleRangeFieldFocus(this); };
+				cycleRangeFields[fieldIdx].onblur = function (e) { CanvasCycle.handleCycleRangeFieldBlur(e); };
 			}
-
 			container.appendChild(row);
 		}
-
 		container.ondragstart = function (e) {
 			var t = e.target;
-			if (!t || t.getAttribute("data-action") !== "drag") {
-				e.preventDefault();
-				return;
-			}
+			if (!t || t.getAttribute("data-action") !== "drag") { e.preventDefault(); return; }
 			e.dataTransfer.effectAllowed = "move";
-			e.dataTransfer.setData("text/plain", t.getAttribute("data-cycle"));
-			var row = t.closest(".cycle_row");
-			if (row) row.classList.add("dragging");
+			CanvasCycle.currentCycleDragType = t.getAttribute("data-type") || "";
+			var dragRow = t.closest(".cycle_row");
+			e.dataTransfer.setData("text/plain", JSON.stringify({ type: t.getAttribute("data-type"), cycle: t.getAttribute("data-cycle"), group: t.getAttribute("data-group"), row: (dragRow && dragRow.getAttribute("data-row")) || "" }));
+			if (dragRow) dragRow.classList.add("dragging");
 		};
-
 		container.ondragover = function (e) {
 			if (!container.querySelector(".cycle_row.dragging")) return;
 			e.preventDefault();
 			e.dataTransfer.dropEffect = "move";
-			CanvasCycle.showCycleDropIndicator(e.clientY);
+			CanvasCycle.showCycleDropIndicator(e.clientY, e.clientX, CanvasCycle.currentCycleDragType === "group");
 		};
-
 		container.ondrop = function (e) {
 			if (!container.querySelector(".cycle_row.dragging")) return;
 			e.preventDefault();
-			var fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
-			var insertIdx = CanvasCycle.getCycleDropInsertIndex(e.clientY);
+			var drag;
+			try { drag = JSON.parse(e.dataTransfer.getData("text/plain")); } catch (err) { drag = null; }
+			var target = CanvasCycle.getCycleDropTarget(e.clientY, e.clientX, drag && drag.type === "group");
 			CanvasCycle.clearCycleDropIndicator();
-			CanvasCycle.moveCycleToIndex(fromIdx, insertIdx);
+			if (!drag) return;
+			if (drag.type === "group") CanvasCycle.moveGroupToDisplayIndex(drag.group, target.insertIdx);
+			else CanvasCycle.moveCycleToPlacement(parseInt(drag.cycle, 10), target, parseInt(drag.row, 10));
 		};
-
 		container.ondragend = function () {
 			var dragging = container.querySelectorAll(".cycle_row.dragging");
-			for (var i = 0; i < dragging.length; i++) {
-				dragging[i].classList.remove("dragging");
-			}
+			for (var i = 0; i < dragging.length; i++) dragging[i].classList.remove("dragging");
+			CanvasCycle.currentCycleDragType = "";
 			CanvasCycle.clearCycleDropIndicator();
 		};
-
 		container.onclick = function (e) {
 			var t = e.target;
-			if (t.getAttribute("data-action") !== "remove") return;
-			var cidx = parseInt(t.getAttribute("data-cycle"), 10);
-			CanvasCycle.removeCycle(cidx);
+			var action = t.getAttribute("data-action");
+			if (action === "remove") return CanvasCycle.removeCycle(parseInt(t.getAttribute("data-cycle"), 10));
+			if (action === "toggle-group") {
+				var name = t.getAttribute("data-group");
+				CanvasCycle.collapsedCycleGroups[name] = !CanvasCycle.collapsedCycleGroups[name];
+				CanvasCycle.renderCyclesEditor();
+				return;
+			}
+			if (action === "remove-group") return CanvasCycle.requestRemoveGroup(t.getAttribute("data-group"));
+		};
+		container.ondblclick = function (e) {
+			var wrap = e.target.closest && e.target.closest(".cycle_group_name");
+			if (!wrap) return;
+			var input = wrap.querySelector("input");
+			if (!input) return;
+			wrap.classList.add("editing");
+			input.focus();
+			input.select();
 		};
 		container.oninput = function (e) {
 			var t = e.target;
@@ -1484,36 +1623,34 @@ var CanvasCycle = {
 			CanvasCycle.markImageEdited();
 			CanvasCycle.syncUploadedImageData();
 		};
+		container.onfocusout = function (e) {
+			var t = e.target;
+			if (!t || t.getAttribute("data-key") !== "group-name") return;
+			CanvasCycle.commitGroupNameEdit(t.getAttribute("data-group"), t.value || "");
+		};
 		container.onchange = function (e) {
 			var t = e.target;
+			if (t.getAttribute("data-key") === "group-name") {
+				CanvasCycle.commitGroupNameEdit(t.getAttribute("data-group"), t.value || "");
+				return;
+			}
+			if (t.getAttribute("data-type") === "group" && t.getAttribute("data-key") === "active") {
+				CanvasCycle.setGroupActive(t.getAttribute("data-group"), !!t.checked);
+				return;
+			}
 			if (!t.getAttribute("data-cycle")) return;
 			var cidx = parseInt(t.getAttribute("data-cycle"), 10);
 			var key = t.getAttribute("data-key");
 			var cyc = CanvasCycle.bmp.palette.cycles[cidx];
-			if (!cyc) return;
-			if (key === "name") return;
-			var val =
-				t.type === "checkbox" ? (t.checked ? 1 : 0) : parseInt(t.value, 10);
-			if (key === "active") {
-				cyc.active = !!val;
-				CanvasCycle.bmp.optimize();
-				CanvasCycle.markImageEdited();
-				CanvasCycle.syncUploadedImageData();
-				return;
+			if (!cyc || key === "name") return;
+			var val = t.type === "checkbox" ? (t.checked ? 1 : 0) : parseInt(t.value, 10);
+			if (key === "active") cyc.active = !!val;
+			else if (key === "reverse") cyc.reverse = val ? 1 : 0;
+			else {
+				if ((key === "low" || key === "high") && isNaN(val)) val = 0;
+				if (key === "low" || key === "high") { val = Math.max(0, Math.min(255, val)); t.value = "" + val; }
+				cyc[key] = isNaN(val) ? 0 : val;
 			}
-			if (key === "reverse") {
-				cyc.reverse = val ? 1 : 0;
-				CanvasCycle.bmp.optimize();
-				CanvasCycle.markImageEdited();
-				CanvasCycle.syncUploadedImageData();
-				return;
-			}
-			if (key === "low" || key === "high") {
-				if (isNaN(val)) val = 0;
-				val = Math.max(0, Math.min(255, val));
-				t.value = "" + val;
-			}
-			cyc[key] = isNaN(val) ? 0 : val;
 			CanvasCycle.bmp.optimize();
 			CanvasCycle.markImageEdited();
 			CanvasCycle.syncUploadedImageData();
@@ -1521,58 +1658,284 @@ var CanvasCycle = {
 		};
 	},
 
+	commitGroupNameEdit: function (oldName, inputName) {
+		if (!oldName) return;
+		var unique = this.makeUniqueGroupName(inputName, oldName);
+		var idx = this.cycleGroups.indexOf(oldName);
+		if (idx === -1) return;
+		if (unique !== oldName) {
+			this.cycleGroups[idx] = unique;
+			for (var c = 0; c < this.bmp.palette.cycles.length; c++) {
+				if ((this.bmp.palette.cycles[c].group || "") === oldName) this.bmp.palette.cycles[c].group = unique;
+			}
+			for (var oi = 0; oi < this.cycleRowOrder.length; oi++) {
+				if (this.cycleRowOrder[oi] === "g:" + oldName) this.cycleRowOrder[oi] = "g:" + unique;
+			}
+			if (this.collapsedCycleGroups[oldName]) this.collapsedCycleGroups[unique] = true;
+			delete this.collapsedCycleGroups[oldName];
+			this.bmp.optimize();
+			this.markImageEdited();
+			this.syncUploadedImageData();
+		}
+		this.renderCyclesEditor();
+	},
+
 	getCycleDropInsertIndex: function (clientY) {
 		var container = $("cycles_editor");
 		var rows = container ? container.querySelectorAll(".cycle_row") : null;
 		if (!rows || !rows.length) return 0;
+		var firstRect = rows[0].getBoundingClientRect();
+		var lastRect = rows[rows.length - 1].getBoundingClientRect();
+		if (clientY <= firstRect.top + 18) return 0;
+		if (clientY >= lastRect.bottom - 12) return rows.length;
 		for (var idx = 0; idx < rows.length; idx++) {
 			var rect = rows[idx].getBoundingClientRect();
-			var midpoint = rect.top + rect.height / 2;
-			if (clientY < midpoint) return idx;
+			if (clientY < rect.top + rect.height / 2) return idx;
 		}
 		return rows.length;
 	},
 
-	showCycleDropIndicator: function (clientY) {
+	getCycleDropTarget: function (clientY, clientX, forceInsert) {
+		var insertIdx = this.getCycleDropInsertIndex(clientY);
+		var target = {
+			insertIdx: insertIdx,
+			targetGroup: "",
+			beforeCycleIdx: null,
+			hoverRowEl: null,
+			hoverType: "insert",
+		};
+		var hover = document.elementFromPoint(clientX, clientY);
+		var rowEl = hover && hover.closest ? hover.closest("#cycles_editor .cycle_row") : null;
+		if (!rowEl || forceInsert) return target;
+
+		var rows = this.getDisplayCycleRows();
+		var rowPos = parseInt(rowEl.getAttribute("data-row"), 10);
+		if (isNaN(rowPos)) return target;
+		target.hoverRowEl = rowEl;
+
+		var hoverType = rowEl.getAttribute("data-type");
+		var rect = rowEl.getBoundingClientRect();
+		var rel = rect.height ? (clientY - rect.top) / rect.height : 0.5;
+		var topZone = rel <= 0.25;
+		var bottomZone = rel >= 0.75;
+
+		if (hoverType === "group") {
+			var groupName = rowEl.getAttribute("data-group") || "";
+			if (topZone) {
+				target.insertIdx = rowPos;
+				return target;
+			}
+			if (bottomZone) {
+				var after = rowPos + 1;
+				while (after < rows.length && (rows[after].groupName || "") === groupName) after++;
+				target.insertIdx = after;
+				return target;
+			}
+			target.hoverType = "into-group";
+			target.targetGroup = groupName;
+			for (var idx = 0; idx < this.bmp.palette.cycles.length; idx++) {
+				if ((this.bmp.palette.cycles[idx].group || "") === target.targetGroup) {
+					target.beforeCycleIdx = idx;
+					break;
+				}
+			}
+			return target;
+		}
+
+		if (hoverType !== "cycle") return target;
+		var cycleIdx = parseInt(rowEl.getAttribute("data-cycle"), 10);
+		target.targetGroup = rowEl.getAttribute("data-group") || "";
+		if (!target.targetGroup || isNaN(cycleIdx)) return target;
+
+		if (topZone) {
+			target.insertIdx = rowPos;
+			return target;
+		}
+		if (bottomZone) {
+			target.insertIdx = rowPos + 1;
+			return target;
+		}
+
+		target.hoverType = "into-group";
+		if (rel < 0.5) {
+			target.beforeCycleIdx = cycleIdx;
+			return target;
+		}
+		for (var i = rowPos + 1; i < rows.length; i++) {
+			if (rows[i].type !== "cycle") continue;
+			if ((rows[i].groupName || "") !== target.targetGroup) continue;
+			target.beforeCycleIdx = rows[i].cycleIdx;
+			return target;
+		}
+		return target;
+	},
+
+	showCycleDropIndicator: function (clientY, clientX, forceInsert) {
 		var container = $("cycles_editor");
 		if (!container) return;
 		var rows = container.querySelectorAll(".cycle_row");
 		this.clearCycleDropIndicator();
 		if (!rows.length) return;
-		var insertIdx = this.getCycleDropInsertIndex(clientY);
+		var target = this.getCycleDropTarget(clientY, clientX, forceInsert);
+		if (target.hoverType === "into-group" && target.hoverRowEl) {
+			target.hoverRowEl.classList.add("drop-into");
+			return;
+		}
+		var insertIdx = target.insertIdx;
 		if (insertIdx <= 0) rows[0].classList.add("drop-before");
-		else if (insertIdx >= rows.length)
-			rows[rows.length - 1].classList.add("drop-after");
+		else if (insertIdx >= rows.length) rows[rows.length - 1].classList.add("drop-after");
 		else rows[insertIdx].classList.add("drop-before");
 	},
 
 	clearCycleDropIndicator: function () {
 		var container = $("cycles_editor");
 		if (!container) return;
-		var rows = container.querySelectorAll(
-			".cycle_row.drop-before, .cycle_row.drop-after",
-		);
-		for (var idx = 0; idx < rows.length; idx++) {
-			rows[idx].classList.remove("drop-before", "drop-after");
+		var rows = container.querySelectorAll(".cycle_row.drop-before, .cycle_row.drop-after, .cycle_row.drop-into");
+		for (var idx = 0; idx < rows.length; idx++) rows[idx].classList.remove("drop-before", "drop-after", "drop-into");
+	},
+
+	moveCycleToPlacement: function (fromIdx, target, fromRowIdx) {
+		var cycles = this.bmp && this.bmp.palette ? this.bmp.palette.cycles : null;
+		if (!cycles || isNaN(fromIdx) || fromIdx < 0 || fromIdx >= cycles.length) return;
+		target = target || { insertIdx: cycles.length, targetGroup: "", beforeCycleIdx: null, hoverType: "insert" };
+		this.normalizeCycleRowOrder();
+
+		var fromCycle = cycles[fromIdx];
+		var wasUngrouped = !(fromCycle.group || "");
+		var rowOrderInsertIdx = this.getRowOrderIndexForDisplayInsert(target.insertIdx);
+		if (wasUngrouped && !isNaN(fromRowIdx)) {
+			var fromRowOrderIdx = this.getRowOrderIndexForDisplayInsert(fromRowIdx);
+			if (fromRowOrderIdx < rowOrderInsertIdx) rowOrderInsertIdx--;
+			if (fromRowOrderIdx >= 0 && fromRowOrderIdx < this.cycleRowOrder.length && this.cycleRowOrder[fromRowOrderIdx] === "s")
+				this.cycleRowOrder.splice(fromRowOrderIdx, 1);
+			else {
+				var sidx = this.cycleRowOrder.indexOf("s");
+				if (sidx > -1) this.cycleRowOrder.splice(sidx, 1);
+			}
 		}
+
+		var targetGroup = target.hoverType === "into-group" ? (target.targetGroup || "") : "";
+		var beforeCycleIdx = null;
+		if (target.hoverType === "into-group") beforeCycleIdx = target.beforeCycleIdx;
+		else {
+			var rows = this.getDisplayCycleRows();
+			for (var i = target.insertIdx; i < rows.length; i++) {
+				if (rows[i].type !== "cycle") continue;
+				if (rows[i].cycleIdx === fromIdx) continue;
+				beforeCycleIdx = rows[i].cycleIdx;
+				break;
+			}
+		}
+		var moved = cycles.splice(fromIdx, 1)[0];
+		moved.group = targetGroup;
+		if (beforeCycleIdx !== null && beforeCycleIdx > fromIdx) beforeCycleIdx--;
+		if (beforeCycleIdx === null) cycles.push(moved);
+		else cycles.splice(Math.max(0, beforeCycleIdx), 0, moved);
+
+		if (!targetGroup) {
+			rowOrderInsertIdx = Math.max(0, Math.min(this.cycleRowOrder.length, rowOrderInsertIdx));
+			this.cycleRowOrder.splice(rowOrderInsertIdx, 0, "s");
+		}
+		this.normalizeCycleRowOrder();
+		this.bmp.palette.numCycles = cycles.length;
+		this.bmp.optimize();
+		this.markImageEdited();
+		this.renderCyclesEditor();
+		this.renderDirty = true;
+		this.syncUploadedImageData();
+	},
+
+	moveGroupToDisplayIndex: function (groupName, displayIdx) {
+		if (!groupName) return;
+		this.normalizeCycleRowOrder();
+		var token = "g:" + groupName;
+		var fromOrderIdx = this.cycleRowOrder.indexOf(token);
+		if (fromOrderIdx < 0) return;
+		var toOrderIdx = this.getRowOrderIndexForDisplayInsert(displayIdx);
+		if (fromOrderIdx < toOrderIdx) toOrderIdx--;
+		this.cycleRowOrder.splice(fromOrderIdx, 1);
+		toOrderIdx = Math.max(0, Math.min(this.cycleRowOrder.length, toOrderIdx));
+		this.cycleRowOrder.splice(toOrderIdx, 0, token);
+		this.markImageEdited();
+		this.renderCyclesEditor();
+		this.syncUploadedImageData();
+	},
+
+	requestRemoveGroup: function (name) {
+		if (!name) return;
+		var hasChildren = this.bmp.palette.cycles.some(function (cyc) { return (cyc.group || "") === name; });
+		if (!hasChildren) return this.removeGroup(name);
+		this.pendingGroupDeleteName = name;
+		$("group_warning_modal").setClass("hidden", false);
+	},
+
+	cancelGroupDelete: function () {
+		this.pendingGroupDeleteName = "";
+		$("group_warning_modal").setClass("hidden", true);
+	},
+
+	confirmGroupDelete: function () {
+		var name = this.pendingGroupDeleteName;
+		this.cancelGroupDelete();
+		if (name) this.removeGroup(name);
+	},
+
+	removeGroup: function (name) {
+		if (!name) return;
+		this.cycleGroups = this.cycleGroups.filter(function (g) { return g !== name; });
+		this.cycleRowOrder = this.cycleRowOrder.filter(function (tok) { return tok !== "g:" + name; });
+		delete this.collapsedCycleGroups[name];
+		this.bmp.palette.cycles = this.bmp.palette.cycles.filter(function (cyc) { return (cyc.group || "") !== name; });
+		this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
+		this.normalizeCycleRowOrder();
+		this.bmp.optimize();
+		this.markImageEdited();
+		this.renderCyclesEditor();
+		this.syncUploadedImageData();
+	},
+
+	setGroupActive: function (name, isActive) {
+		var dirty = false;
+		for (var i = 0; i < this.bmp.palette.cycles.length; i++) {
+			var cyc = this.bmp.palette.cycles[i];
+			if ((cyc.group || "") !== name) continue;
+			cyc.active = !!isActive;
+			dirty = true;
+		}
+		if (!dirty) return;
+		this.bmp.optimize();
+		this.markImageEdited();
+		this.renderCyclesEditor();
+		this.syncUploadedImageData();
+	},
+
+	handleGroupNameCollision: function (baseName) {
+		return this.makeUniqueGroupName(baseName);
+	},
+
+	addGroup: function () {
+		if (!this.bmp) return;
+		var base = "group-" + (this.cycleGroups.length + 1);
+		var name = this.handleGroupNameCollision(base);
+		this.cycleGroups.push(name);
+		this.cycleRowOrder.push("g:" + name);
+		this.collapsedCycleGroups[name] = false;
+		this.normalizeCycleRowOrder();
+		this.markImageEdited();
+		this.renderCyclesEditor();
+		this.syncUploadedImageData();
 	},
 
 	syncSelectedColorToCycleField: function (field) {
 		if (!field || !this.bmp || !field.getAttribute) return;
 		var key = field.getAttribute("data-key");
-		if (key !== "low" && key !== "high") {
-			this.clearCycleFieldColorSelection();
-			return;
-		}
+		if (key !== "low" && key !== "high") { this.clearCycleFieldColorSelection(); return; }
 		var idx = parseInt(field.value, 10);
 		if (isNaN(idx)) {
 			var cycleIdx = parseInt(field.getAttribute("data-cycle"), 10);
-			if (!isNaN(cycleIdx) && this.bmp.palette.cycles[cycleIdx]) {
-				idx = parseInt(this.bmp.palette.cycles[cycleIdx][key], 10);
-			}
+			if (!isNaN(cycleIdx) && this.bmp.palette.cycles[cycleIdx]) idx = parseInt(this.bmp.palette.cycles[cycleIdx][key], 10);
 		}
-		if (isNaN(idx) || idx < 0 || idx >= this.bmp.palette.baseColors.length)
-			return;
+		if (isNaN(idx) || idx < 0 || idx >= this.bmp.palette.baseColors.length) return;
 		this.selectColor(idx);
 		this.keyboardHighlightColor = idx;
 		this.updateHighlightColor();
@@ -1586,16 +1949,11 @@ var CanvasCycle = {
 	},
 
 	handleCycleRangeFieldFocus: function (field) {
-		if (this.cycleFieldBlurTimer) {
-			clearTimeout(this.cycleFieldBlurTimer);
-			this.cycleFieldBlurTimer = null;
-		}
+		if (this.cycleFieldBlurTimer) { clearTimeout(this.cycleFieldBlurTimer); this.cycleFieldBlurTimer = null; }
 		this.syncSelectedColorToCycleField(field);
 	},
 
-	handleCycleRangeFieldBlur: function (evt) {
-		this.queueCycleFieldColorSelectionClear(evt);
-	},
+	handleCycleRangeFieldBlur: function (evt) { this.queueCycleFieldColorSelectionClear(evt); },
 
 	queueCycleFieldColorSelectionClear: function (evt) {
 		if (!evt || !this.bmp) return;
@@ -1607,25 +1965,19 @@ var CanvasCycle = {
 		this.cycleFieldBlurTimer = setTimeout(function () {
 			CanvasCycle.cycleFieldBlurTimer = null;
 			var active = document.activeElement;
-			if (!active || !active.getAttribute) {
-				CanvasCycle.clearCycleFieldColorSelection();
-				return;
-			}
+			if (!active || !active.getAttribute) return CanvasCycle.clearCycleFieldColorSelection();
 			var activeKey = active.getAttribute("data-key");
-			if (
-				(activeKey === "low" || activeKey === "high") &&
-				active.closest &&
-				active.closest("#cycles_editor")
-			)
-				return;
+			if ((activeKey === "low" || activeKey === "high") && active.closest && active.closest("#cycles_editor")) return;
 			CanvasCycle.clearCycleFieldColorSelection();
 		}, 0);
 	},
 
 	addCycle: function () {
 		if (!this.bmp) return;
-		this.bmp.palette.cycles.push(new Cycle(280, 0, 0, 0, true, ""));
+		this.bmp.palette.cycles.push(new Cycle(280, 0, 0, 0, true, "", ""));
 		this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
+		this.cycleRowOrder.push("s");
+		this.normalizeCycleRowOrder();
 		this.bmp.optimize();
 		this.markImageEdited();
 		this.renderCyclesEditor();
@@ -1634,13 +1986,14 @@ var CanvasCycle = {
 
 	removeCycle: function (cycleIdx) {
 		if (!this.bmp || !this.bmp.palette.cycles.length) return;
-		if (
-			isNaN(cycleIdx) ||
-			cycleIdx < 0 ||
-			cycleIdx >= this.bmp.palette.cycles.length
-		)
-			return;
+		if (isNaN(cycleIdx) || cycleIdx < 0 || cycleIdx >= this.bmp.palette.cycles.length) return;
+		var wasUngrouped = !(this.bmp.palette.cycles[cycleIdx].group || "");
 		this.bmp.palette.cycles.splice(cycleIdx, 1);
+		if (wasUngrouped) {
+			var sidx = this.cycleRowOrder.lastIndexOf("s");
+			if (sidx > -1) this.cycleRowOrder.splice(sidx, 1);
+		}
+		this.normalizeCycleRowOrder();
 		this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
 		this.bmp.optimize();
 		this.markImageEdited();
@@ -1655,6 +2008,8 @@ var CanvasCycle = {
 			colors: this.bmp.palette.baseColors.map(function (c) {
 				return [c.red, c.green, c.blue];
 			}),
+			groups: this.cycleGroups.slice(0),
+			cycleRowOrder: this.cycleRowOrder.slice(0),
 			cycles: this.bmp.palette.cycles.map(function (c) {
 				return {
 					low: c.low,
@@ -1663,17 +2018,22 @@ var CanvasCycle = {
 					reverse: c.reverse ? 1 : 0,
 					active: c.active !== false,
 					name: typeof c.name === "string" ? c.name.slice(0, 32) : "",
+					group: typeof c.group === "string" ? c.group : "",
 				};
 			}),
 		};
 		if (this.sourceImageData) {
 			this.sourceImageData.pixels = payload.pixels;
 			this.sourceImageData.colors = payload.colors;
+			this.sourceImageData.groups = payload.groups;
+			this.sourceImageData.cycleRowOrder = payload.cycleRowOrder;
 			this.sourceImageData.cycles = payload.cycles;
 		}
 		if (this.uploadedImageData) {
 			this.uploadedImageData.pixels = payload.pixels;
 			this.uploadedImageData.colors = payload.colors;
+			this.uploadedImageData.groups = payload.groups;
+			this.uploadedImageData.cycleRowOrder = payload.cycleRowOrder;
 			this.uploadedImageData.cycles = payload.cycles;
 		}
 	},
@@ -1865,6 +2225,8 @@ var CanvasCycle = {
 			colors: this.bmp.palette.baseColors.map(function (c) {
 				return [c.red, c.green, c.blue];
 			}),
+			groups: this.cycleGroups.slice(0),
+			cycleRowOrder: this.cycleRowOrder.slice(0),
 			cycles: this.bmp.palette.cycles.map(function (c) {
 				return {
 					low: c.low,
@@ -1873,6 +2235,7 @@ var CanvasCycle = {
 					reverse: c.reverse ? 1 : 0,
 					active: c.active !== false,
 					name: typeof c.name === "string" ? c.name.slice(0, 32) : "",
+					group: typeof c.group === "string" ? c.group : "",
 				};
 			}),
 		};

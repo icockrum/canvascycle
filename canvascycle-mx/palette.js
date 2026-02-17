@@ -29,14 +29,16 @@ Class.create( 'Cycle', {
 	high: 0,
 	active: true,
 	name: "",
+	group: "",
 	
-	__construct: function(r, rev, l, h, active, name) {
+	__construct: function(r, rev, l, h, active, name, group) {
 		this.rate = r;
 		this.reverse = (rev === 2 || rev === 1) ? 1 : 0;
 		this.low = l;
 		this.high = h;
 		this.active = (active !== false);
 		this.name = (typeof(name) == 'string') ? name.slice(0, 32) : "";
+		this.group = (typeof(group) == 'string') ? group : "";
 	}
 } );
 
@@ -73,7 +75,7 @@ Class.create( 'Palette', {
 		this.cycles = [];
 		for (var idx = 0, len = cycls.length; idx < len; idx++) {
 			var cyc = cycls[idx];
-			this.cycles.push( new Cycle( cyc.rate, cyc.reverse, cyc.low, cyc.high, cyc.active, cyc.name ) );
+			this.cycles.push( new Cycle( cyc.rate, cyc.reverse, cyc.low, cyc.high, cyc.active, cyc.name, cyc.group ) );
 		}
 		
 		this.numColors = this.baseColors.length;
