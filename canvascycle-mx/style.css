@@ -313,7 +313,7 @@ div#d_debug .fps {
 		) 1.25rem minmax(7rem, 1fr) 2rem;
 	column-gap: 6px;
 	align-items: center;
-	margin-bottom: 2px;
+	margin-bottom: 0;
 	justify-items: center;
 }
 .cycle_header {
@@ -335,6 +335,7 @@ div#d_debug .fps {
 }
 .cycle_row {
 	position: relative;
+	padding: 0px 2px 2px 4px;
 }
 .cycle_row.drop-before::before,
 .cycle_row.drop-after::after {
@@ -359,8 +360,8 @@ div#d_debug .fps {
 .cycle_row select {
 	width: 100%;
 	box-sizing: border-box;
-	background: var(--panel-2);
-	border: 1px solid var(--line);
+	background: transparent;
+	border: 1px solid #44475266;
 	color: var(--text);
 }
 .cycle_row input[type="checkbox"] {
@@ -399,10 +400,21 @@ div#d_debug .fps {
 	outline-offset: -1px;
 }
 .cycle_group_tone_0 {
-	background: rgba(255, 255, 255, 0.03);
+	background: rgba(150, 170, 255, 0.08);
 }
 .cycle_group_tone_1 {
-	background: rgba(255, 255, 255, 0.06);
+	background: rgba(150, 170, 255, 0.14);
+}
+
+.cycle_group_block {
+	border-left: 1px solid #44475266;
+	border-right: 1px solid #44475266;
+}
+.cycle_group_block_start {
+	border-top: 1px solid #44475266;
+}
+.cycle_group_block_end {
+	border-bottom: 1px solid #44475266;
 }
 
 .cycle_group_row {

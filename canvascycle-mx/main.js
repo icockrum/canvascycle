@@ -62,6 +62,7 @@ var CanvasCycle = {
 	zoomDrag: null,
 	cycleTimeOffset: 0,
 	cycleFieldBlurTimer: null,
+	currentCycleDragType: "",
 	cycleGroups: [],
 	collapsedCycleGroups: {},
 	pendingGroupDeleteName: "",
@@ -1409,7 +1410,15 @@ var CanvasCycle = {
 			var rowInfo = rows[ridx];
 			var row = document.createElement("div");
 			var toneClass = rowInfo.groupName ? " cycle_group_tone_" + rowInfo.tone : "";
-			row.className = "cycle_row" + (rowInfo.type === "group" ? " cycle_group_row" : "") + toneClass;
+			var groupBlockClass = "";
+			if (rowInfo.groupName) {
+				groupBlockClass = " cycle_group_block";
+				var prevGroup = ridx > 0 ? rows[ridx - 1].groupName || "" : "";
+				var nextGroup = ridx + 1 < rows.length ? rows[ridx + 1].groupName || "" : "";
+				if (prevGroup !== rowInfo.groupName) groupBlockClass += " cycle_group_block_start";
+				if (nextGroup !== rowInfo.groupName) groupBlockClass += " cycle_group_block_end";
+			}
+			row.className = "cycle_row" + (rowInfo.type === "group" ? " cycle_group_row" : "") + toneClass + groupBlockClass;
 			row.setAttribute("data-row", ridx);
 			row.setAttribute("data-type", rowInfo.type);
 			row.setAttribute("data-group", rowInfo.groupName || "");
@@ -1455,6 +1464,7 @@ var CanvasCycle = {
 			var t = e.target;
 			if (!t || t.getAttribute("data-action") !== "drag") { e.preventDefault(); return; }
 			e.dataTransfer.effectAllowed = "move";
+			CanvasCycle.currentCycleDragType = t.getAttribute("data-type") || "";
 			e.dataTransfer.setData("text/plain", JSON.stringify({ type: t.getAttribute("data-type"), cycle: t.getAttribute("data-cycle"), group: t.getAttribute("data-group") }));
 			var dragRow = t.closest(".cycle_row");
 			if (dragRow) dragRow.classList.add("dragging");
@@ -1463,14 +1473,14 @@ var CanvasCycle = {
 			if (!container.querySelector(".cycle_row.dragging")) return;
 			e.preventDefault();
 			e.dataTransfer.dropEffect = "move";
-			CanvasCycle.showCycleDropIndicator(e.clientY, e.clientX);
+			CanvasCycle.showCycleDropIndicator(e.clientY, e.clientX, CanvasCycle.currentCycleDragType === "group");
 		};
 		container.ondrop = function (e) {
 			if (!container.querySelector(".cycle_row.dragging")) return;
 			e.preventDefault();
 			var drag;
 			try { drag = JSON.parse(e.dataTransfer.getData("text/plain")); } catch (err) { drag = null; }
-			var target = CanvasCycle.getCycleDropTarget(e.clientY, e.clientX);
+			var target = CanvasCycle.getCycleDropTarget(e.clientY, e.clientX, drag && drag.type === "group");
 			CanvasCycle.clearCycleDropIndicator();
 			if (!drag) return;
 			if (drag.type === "group") CanvasCycle.moveGroupToDisplayIndex(drag.group, target.insertIdx);
@@ -1479,6 +1489,7 @@ var CanvasCycle = {
 		container.ondragend = function () {
 			var dragging = container.querySelectorAll(".cycle_row.dragging");
 			for (var i = 0; i < dragging.length; i++) dragging[i].classList.remove("dragging");
+			CanvasCycle.currentCycleDragType = "";
 			CanvasCycle.clearCycleDropIndicator();
 		};
 		container.onclick = function (e) {
@@ -1583,7 +1594,7 @@ var CanvasCycle = {
 		return rows.length;
 	},
 
-	getCycleDropTarget: function (clientY, clientX) {
+	getCycleDropTarget: function (clientY, clientX, forceInsert) {
 		var insertIdx = this.getCycleDropInsertIndex(clientY);
 		var target = {
 			insertIdx: insertIdx,
@@ -1594,7 +1605,7 @@ var CanvasCycle = {
 		};
 		var hover = document.elementFromPoint(clientX, clientY);
 		var rowEl = hover && hover.closest ? hover.closest("#cycles_editor .cycle_row") : null;
-		if (!rowEl) return target;
+		if (!rowEl || forceInsert) return target;
 		target.hoverRowEl = rowEl;
 		var hoverType = rowEl.getAttribute("data-type");
 		if (hoverType === "group") {
@@ -1631,13 +1642,13 @@ var CanvasCycle = {
 		return target;
 	},
 
-	showCycleDropIndicator: function (clientY, clientX) {
+	showCycleDropIndicator: function (clientY, clientX, forceInsert) {
 		var container = $("cycles_editor");
 		if (!container) return;
 		var rows = container.querySelectorAll(".cycle_row");
 		this.clearCycleDropIndicator();
 		if (!rows.length) return;
-		var target = this.getCycleDropTarget(clientY, clientX);
+		var target = this.getCycleDropTarget(clientY, clientX, forceInsert);
 		if (target.hoverType === "into-group" && target.hoverRowEl) {
 			target.hoverRowEl.classList.add("drop-into");
 			return;
@@ -1683,6 +1694,28 @@ var CanvasCycle = {
 		this.markImageEdited();
 		this.renderCyclesEditor();
 		this.renderDirty = true;
+		this.syncUploadedImageData();
+	},
+
+	moveGroupToDisplayIndex: function (groupName, displayIdx) {
+		if (!groupName) return;
+		var fromIdx = this.cycleGroups.indexOf(groupName);
+		if (fromIdx === -1) return;
+		var rows = this.getDisplayCycleRows();
+		displayIdx = Math.max(0, Math.min(rows.length, displayIdx));
+		var beforeGroup = null;
+		for (var i = displayIdx; i < rows.length; i++) {
+			if (rows[i].type === "group" && rows[i].groupName !== groupName) {
+				beforeGroup = rows[i].groupName;
+				break;
+			}
+		}
+		this.cycleGroups.splice(fromIdx, 1);
+		var toIdx = beforeGroup ? this.cycleGroups.indexOf(beforeGroup) : this.cycleGroups.length;
+		if (toIdx < 0) toIdx = this.cycleGroups.length;
+		this.cycleGroups.splice(toIdx, 0, groupName);
+		this.markImageEdited();
+		this.renderCyclesEditor();
 		this.syncUploadedImageData();
 	},
 
