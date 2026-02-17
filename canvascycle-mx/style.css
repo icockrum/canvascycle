@@ -393,6 +393,32 @@ div#d_debug .fps {
 .cycle_row.dragging {
 	opacity: 0.5;
 }
+
+.cycle_group_row {
+	grid-template-columns: 14px 18px 1.25rem minmax(0, 1fr) 2rem;
+}
+.cycle_group_row .cycle_group_toggle {
+	cursor: pointer;
+	user-select: none;
+	font-size: 10px;
+	line-height: 1;
+}
+.cycle_group_name {
+	width: 100%;
+	text-align: left;
+	cursor: text;
+	font-weight: 600;
+}
+.cycle_group_name input {
+	display: none;
+}
+.cycle_group_name.editing span {
+	display: none;
+}
+.cycle_group_name.editing input {
+	display: block;
+	width: 100%;
+}
 .cycle_remove,
 #add_cycle {
 	width: 20px;

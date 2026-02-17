@@ -62,6 +62,9 @@ var CanvasCycle = {
 	zoomDrag: null,
 	cycleTimeOffset: 0,
 	cycleFieldBlurTimer: null,
+	cycleGroups: [],
+	collapsedCycleGroups: {},
+	pendingGroupDeleteName: "",
 	pendingPaletteSortMode: "",
 	paletteEditColorIdx: -1,
 	paletteColorInputEl: null,
@@ -1172,6 +1175,9 @@ var CanvasCycle = {
 
 	processImage: function (img) {
 		this.sourceImageData = img;
+		this.cycleGroups = this.buildCycleGroupList(img);
+		this.collapsedCycleGroups = {};
+		this.pendingGroupDeleteName = "";
 		this.bmp = new Bitmap(img);
 		this.bmp.optimize();
 		var canvas = $("mycanvas");
@@ -1340,135 +1346,171 @@ var CanvasCycle = {
 			}, 1000 / this.settings.targetFPS);
 	},
 
+	buildCycleGroupList: function (img) {
+		var names = [];
+		var used = {};
+		var initial = img && img.groups && img.groups.length ? img.groups : [];
+		for (var i = 0; i < initial.length; i++) {
+			var name = typeof initial[i] === "string" ? initial[i].trim() : "";
+			if (!name || used[name]) continue;
+			used[name] = 1;
+			names.push(name);
+		}
+		var cycles = img && img.cycles ? img.cycles : [];
+		for (var cidx = 0; cidx < cycles.length; cidx++) {
+			var group = typeof cycles[cidx].group === "string" ? cycles[cidx].group.trim() : "";
+			if (!group || used[group]) continue;
+			used[group] = 1;
+			names.push(group);
+		}
+		return names;
+	},
+
+	makeUniqueGroupName: function (base, excludeName) {
+		var candidate = (base || "").trim() || "group";
+		if (candidate.length > 32) candidate = candidate.slice(0, 32);
+		var used = {};
+		for (var idx = 0; idx < this.cycleGroups.length; idx++) {
+			if (this.cycleGroups[idx] !== excludeName) used[this.cycleGroups[idx]] = 1;
+		}
+		if (!used[candidate]) return candidate;
+		var num = 1;
+		while (used[candidate + "-" + num]) num++;
+		return candidate + "-" + num;
+	},
+
+	getDisplayCycleRows: function () {
+		var rows = [];
+		var cycles = this.bmp && this.bmp.palette ? this.bmp.palette.cycles : [];
+		for (var idx = 0; idx < cycles.length; idx++) {
+			var cyc = cycles[idx];
+			if (typeof cyc.group !== "string") cyc.group = "";
+			cyc.group = cyc.group.trim();
+			if (!cyc.group) rows.push({ type: "cycle", cycleIdx: idx });
+		}
+		for (var gidx = 0; gidx < this.cycleGroups.length; gidx++) {
+			var groupName = this.cycleGroups[gidx];
+			rows.push({ type: "group", groupName: groupName, groupIdx: gidx });
+			if (this.collapsedCycleGroups[groupName]) continue;
+			for (var c = 0; c < cycles.length; c++) {
+				if ((cycles[c].group || "") === groupName)
+					rows.push({ type: "cycle", cycleIdx: c, groupName: groupName });
+			}
+		}
+		return rows;
+	},
+
 	renderCyclesEditor: function () {
 		var container = $("cycles_editor");
 		container.innerHTML = "";
 		if (!this.bmp) return;
-		for (var idx = 0; idx < this.bmp.palette.cycles.length; idx++) {
-			var cyc = this.bmp.palette.cycles[idx];
+		var rows = this.getDisplayCycleRows();
+		for (var ridx = 0; ridx < rows.length; ridx++) {
+			var rowInfo = rows[ridx];
 			var row = document.createElement("div");
-			row.className = "cycle_row";
-			row.setAttribute("data-cycle", idx);
+			row.className = "cycle_row" + (rowInfo.type === "group" ? " cycle_group_row" : "");
+			row.setAttribute("data-row", ridx);
+			if (rowInfo.type === "group") {
+				var name = rowInfo.groupName;
+				var children = this.bmp.palette.cycles.filter(function (cyc) {
+					return (cyc.group || "") === name;
+				});
+				var allActive = children.length ? children.every(function (c) { return c.active !== false; }) : true;
+				var someActive = children.some(function (c) { return c.active !== false; });
+				row.innerHTML =
+					'<div class="cycle_drag" draggable="true" data-action="drag" data-type="group" data-group="' +
+					escapeTextFieldValue(name) +
+					'" title="Drag to reorder"></div>' +
+					'<label class="cycle_field cycle_active"><input type="checkbox" data-type="group" data-group="' +
+					escapeTextFieldValue(name) +
+					'" data-key="active"' +
+					(allActive ? ' checked="checked"' : '') +
+					'></label>' +
+					'<div class="cycle_group_toggle" data-action="toggle-group" data-group="' +
+					escapeTextFieldValue(name) +
+					'">' + (this.collapsedCycleGroups[name] ? '▶' : '▼') + '</div>' +
+					'<div class="cycle_group_name" data-action="edit-group" data-group="' + escapeTextFieldValue(name) + '"><span>' +
+					escapeTextFieldValue(name) +
+					'</span><input class="group_name_input" type="text" maxlength="32" data-key="group-name" data-group="' +
+					escapeTextFieldValue(name) +
+					'" value="' + escapeTextFieldValue(name) + '"></div>' +
+					'<div class="button cycle_remove" data-action="remove-group" data-group="' + escapeTextFieldValue(name) + '">x</div>';
+				container.appendChild(row);
+				var box = row.querySelector('input[data-key="active"]');
+				if (box) box.indeterminate = children.length > 0 && someActive && !allActive;
+				continue;
+			}
+			var idx = rowInfo.cycleIdx;
+			var cyc = this.bmp.palette.cycles[idx];
 			if (cyc.reverse === 2) cyc.reverse = 1;
 			cyc.reverse = cyc.reverse ? 1 : 0;
 			if (typeof cyc.name !== "string") cyc.name = "";
 			row.innerHTML =
-				'<div class="cycle_drag" draggable="true" data-action="drag" data-cycle="' +
-				idx +
-				'" title="Drag to reorder"></div>' +
-				'<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' +
-				idx +
-				'" data-key="active"' +
-				(cyc.active === false ? "" : ' checked="checked"') +
-				'"></label>' +
-				'<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' +
-				idx +
-				'" data-key="low" value="' +
-				cyc.low +
-				'"></label>' +
-				'<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' +
-				idx +
-				'" data-key="high" value="' +
-				cyc.high +
-				'"></label>' +
-				'<label class="cycle_field"><input type="number" data-cycle="' +
-				idx +
-				'" data-key="rate" value="' +
-				cyc.rate +
-				'"></label>' +
-				'<label class="cycle_field cycle_reverse"><input type="checkbox" data-cycle="' +
-				idx +
-				'" data-key="reverse"' +
-				(cyc.reverse ? ' checked="checked"' : "") +
-				"></label>" +
-				'<label class="cycle_field cycle_name"><input type="text" maxlength="32" data-cycle="' +
-				idx +
-				'" data-key="name" value="' +
-				escapeTextFieldValue(cyc.name) +
-				'" placeholder="Cycle name"></label>' +
-				'<div class="button cycle_remove" data-action="remove" data-cycle="' +
-				idx +
-				'">x</div>';
-			row.ondragstart = function (e) {
-				var targetTag = e.target && e.target.tagName;
-				if (targetTag === "INPUT" || targetTag === "SELECT") {
-					e.preventDefault();
-					return;
-				}
-				e.dataTransfer.effectAllowed = "move";
-				e.dataTransfer.setData("text/plain", this.getAttribute("data-cycle"));
-				this.classList.add("dragging");
-			};
-			row.ondragend = function () {
-				this.classList.remove("dragging");
-			};
-			row.ondragover = function (e) {
-				e.preventDefault();
-				e.dataTransfer.dropEffect = "move";
-			};
-			row.ondrop = function (e) {
-				e.preventDefault();
-				var fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
-				var toIdx = parseInt(this.getAttribute("data-cycle"), 10);
-				CanvasCycle.reorderCycles(fromIdx, toIdx);
-			};
-
-			var cycleRangeFields = row.querySelectorAll(
-				'input[data-key="low"], input[data-key="high"]',
-			);
+				'<div class="cycle_drag" draggable="true" data-action="drag" data-type="cycle" data-cycle="' + idx + '" title="Drag to reorder"></div>' +
+				'<label class="cycle_field cycle_active"><input type="checkbox" data-cycle="' + idx + '" data-key="active"' + (cyc.active === false ? "" : ' checked="checked"') + '"></label>' +
+				'<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' + idx + '" data-key="low" value="' + cyc.low + '"></label>' +
+				'<label class="cycle_field"><input type="number" min="0" max="255" data-cycle="' + idx + '" data-key="high" value="' + cyc.high + '"></label>' +
+				'<label class="cycle_field"><input type="number" data-cycle="' + idx + '" data-key="rate" value="' + cyc.rate + '"></label>' +
+				'<label class="cycle_field cycle_reverse"><input type="checkbox" data-cycle="' + idx + '" data-key="reverse"' + (cyc.reverse ? ' checked="checked"' : '') + '></label>' +
+				'<label class="cycle_field cycle_name"><input type="text" maxlength="32" data-cycle="' + idx + '" data-key="name" value="' + escapeTextFieldValue(cyc.name) + '" placeholder="Cycle name"></label>' +
+				'<div class="button cycle_remove" data-action="remove" data-cycle="' + idx + '">x</div>';
+			var cycleRangeFields = row.querySelectorAll('input[data-key="low"], input[data-key="high"]');
 			for (var fieldIdx = 0; fieldIdx < cycleRangeFields.length; fieldIdx++) {
-				cycleRangeFields[fieldIdx].onfocus = function () {
-					CanvasCycle.handleCycleRangeFieldFocus(this);
-				};
-				cycleRangeFields[fieldIdx].onblur = function (e) {
-					CanvasCycle.handleCycleRangeFieldBlur(e);
-				};
+				cycleRangeFields[fieldIdx].onfocus = function () { CanvasCycle.handleCycleRangeFieldFocus(this); };
+				cycleRangeFields[fieldIdx].onblur = function (e) { CanvasCycle.handleCycleRangeFieldBlur(e); };
 			}
-
 			container.appendChild(row);
 		}
-
 		container.ondragstart = function (e) {
 			var t = e.target;
-			if (!t || t.getAttribute("data-action") !== "drag") {
-				e.preventDefault();
-				return;
-			}
+			if (!t || t.getAttribute("data-action") !== "drag") { e.preventDefault(); return; }
 			e.dataTransfer.effectAllowed = "move";
-			e.dataTransfer.setData("text/plain", t.getAttribute("data-cycle"));
+			e.dataTransfer.setData("text/plain", JSON.stringify({ type: t.getAttribute("data-type"), cycle: t.getAttribute("data-cycle"), group: t.getAttribute("data-group") }));
 			var row = t.closest(".cycle_row");
 			if (row) row.classList.add("dragging");
 		};
-
 		container.ondragover = function (e) {
 			if (!container.querySelector(".cycle_row.dragging")) return;
 			e.preventDefault();
 			e.dataTransfer.dropEffect = "move";
 			CanvasCycle.showCycleDropIndicator(e.clientY);
 		};
-
 		container.ondrop = function (e) {
 			if (!container.querySelector(".cycle_row.dragging")) return;
 			e.preventDefault();
-			var fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
+			var drag;
+			try { drag = JSON.parse(e.dataTransfer.getData("text/plain")); } catch (err) { drag = null; }
 			var insertIdx = CanvasCycle.getCycleDropInsertIndex(e.clientY);
 			CanvasCycle.clearCycleDropIndicator();
-			CanvasCycle.moveCycleToIndex(fromIdx, insertIdx);
+			if (!drag) return;
+			if (drag.type === "group") CanvasCycle.moveGroupToDisplayIndex(drag.group, insertIdx);
+			else CanvasCycle.moveCycleToDisplayIndex(parseInt(drag.cycle, 10), insertIdx);
 		};
-
 		container.ondragend = function () {
 			var dragging = container.querySelectorAll(".cycle_row.dragging");
-			for (var i = 0; i < dragging.length; i++) {
-				dragging[i].classList.remove("dragging");
-			}
+			for (var i = 0; i < dragging.length; i++) dragging[i].classList.remove("dragging");
 			CanvasCycle.clearCycleDropIndicator();
 		};
-
 		container.onclick = function (e) {
 			var t = e.target;
-			if (t.getAttribute("data-action") !== "remove") return;
-			var cidx = parseInt(t.getAttribute("data-cycle"), 10);
-			CanvasCycle.removeCycle(cidx);
+			var action = t.getAttribute("data-action");
+			if (action === "remove") return CanvasCycle.removeCycle(parseInt(t.getAttribute("data-cycle"), 10));
+			if (action === "toggle-group") {
+				var name = t.getAttribute("data-group");
+				CanvasCycle.collapsedCycleGroups[name] = !CanvasCycle.collapsedCycleGroups[name];
+				CanvasCycle.renderCyclesEditor();
+				return;
+			}
+			if (action === "remove-group") return CanvasCycle.requestRemoveGroup(t.getAttribute("data-group"));
+		};
+		container.ondblclick = function (e) {
+			var wrap = e.target.closest && e.target.closest(".cycle_group_name");
+			if (!wrap) return;
+			var input = wrap.querySelector("input");
+			if (!input) return;
+			wrap.classList.add("editing");
+			input.focus();
+			input.select();
 		};
 		container.oninput = function (e) {
 			var t = e.target;
@@ -1484,41 +1526,58 @@ var CanvasCycle = {
 			CanvasCycle.markImageEdited();
 			CanvasCycle.syncUploadedImageData();
 		};
+		container.onfocusout = function (e) {
+			var t = e.target;
+			if (!t || t.getAttribute("data-key") !== "group-name") return;
+			CanvasCycle.commitGroupNameEdit(t.getAttribute("data-group"), t.value || "");
+		};
 		container.onchange = function (e) {
 			var t = e.target;
+			if (t.getAttribute("data-key") === "group-name") {
+				CanvasCycle.commitGroupNameEdit(t.getAttribute("data-group"), t.value || "");
+				return;
+			}
+			if (t.getAttribute("data-type") === "group" && t.getAttribute("data-key") === "active") {
+				CanvasCycle.setGroupActive(t.getAttribute("data-group"), !!t.checked);
+				return;
+			}
 			if (!t.getAttribute("data-cycle")) return;
 			var cidx = parseInt(t.getAttribute("data-cycle"), 10);
 			var key = t.getAttribute("data-key");
 			var cyc = CanvasCycle.bmp.palette.cycles[cidx];
-			if (!cyc) return;
-			if (key === "name") return;
-			var val =
-				t.type === "checkbox" ? (t.checked ? 1 : 0) : parseInt(t.value, 10);
-			if (key === "active") {
-				cyc.active = !!val;
-				CanvasCycle.bmp.optimize();
-				CanvasCycle.markImageEdited();
-				CanvasCycle.syncUploadedImageData();
-				return;
+			if (!cyc || key === "name") return;
+			var val = t.type === "checkbox" ? (t.checked ? 1 : 0) : parseInt(t.value, 10);
+			if (key === "active") { cyc.active = !!val; }
+			else if (key === "reverse") { cyc.reverse = val ? 1 : 0; }
+			else {
+				if ((key === "low" || key === "high") && isNaN(val)) val = 0;
+				if (key === "low" || key === "high") { val = Math.max(0, Math.min(255, val)); t.value = "" + val; }
+				cyc[key] = isNaN(val) ? 0 : val;
 			}
-			if (key === "reverse") {
-				cyc.reverse = val ? 1 : 0;
-				CanvasCycle.bmp.optimize();
-				CanvasCycle.markImageEdited();
-				CanvasCycle.syncUploadedImageData();
-				return;
-			}
-			if (key === "low" || key === "high") {
-				if (isNaN(val)) val = 0;
-				val = Math.max(0, Math.min(255, val));
-				t.value = "" + val;
-			}
-			cyc[key] = isNaN(val) ? 0 : val;
 			CanvasCycle.bmp.optimize();
 			CanvasCycle.markImageEdited();
 			CanvasCycle.syncUploadedImageData();
 			CanvasCycle.syncSelectedColorToCycleField(t);
 		};
+	},
+
+	commitGroupNameEdit: function (oldName, inputName) {
+		if (!oldName) return;
+		var unique = this.makeUniqueGroupName(inputName, oldName);
+		var idx = this.cycleGroups.indexOf(oldName);
+		if (idx === -1) return;
+		if (unique !== oldName) {
+			this.cycleGroups[idx] = unique;
+			for (var c = 0; c < this.bmp.palette.cycles.length; c++) {
+				if ((this.bmp.palette.cycles[c].group || "") === oldName) this.bmp.palette.cycles[c].group = unique;
+			}
+			if (this.collapsedCycleGroups[oldName]) this.collapsedCycleGroups[unique] = true;
+			delete this.collapsedCycleGroups[oldName];
+			this.bmp.optimize();
+			this.markImageEdited();
+			this.syncUploadedImageData();
+		}
+		this.renderCyclesEditor();
 	},
 
 	getCycleDropInsertIndex: function (clientY) {
@@ -1527,8 +1586,7 @@ var CanvasCycle = {
 		if (!rows || !rows.length) return 0;
 		for (var idx = 0; idx < rows.length; idx++) {
 			var rect = rows[idx].getBoundingClientRect();
-			var midpoint = rect.top + rect.height / 2;
-			if (clientY < midpoint) return idx;
+			if (clientY < rect.top + rect.height / 2) return idx;
 		}
 		return rows.length;
 	},
@@ -1541,38 +1599,136 @@ var CanvasCycle = {
 		if (!rows.length) return;
 		var insertIdx = this.getCycleDropInsertIndex(clientY);
 		if (insertIdx <= 0) rows[0].classList.add("drop-before");
-		else if (insertIdx >= rows.length)
-			rows[rows.length - 1].classList.add("drop-after");
+		else if (insertIdx >= rows.length) rows[rows.length - 1].classList.add("drop-after");
 		else rows[insertIdx].classList.add("drop-before");
 	},
 
 	clearCycleDropIndicator: function () {
 		var container = $("cycles_editor");
 		if (!container) return;
-		var rows = container.querySelectorAll(
-			".cycle_row.drop-before, .cycle_row.drop-after",
-		);
-		for (var idx = 0; idx < rows.length; idx++) {
-			rows[idx].classList.remove("drop-before", "drop-after");
+		var rows = container.querySelectorAll(".cycle_row.drop-before, .cycle_row.drop-after");
+		for (var idx = 0; idx < rows.length; idx++) rows[idx].classList.remove("drop-before", "drop-after");
+	},
+
+	moveGroupToDisplayIndex: function (groupName, displayIdx) {
+		if (!groupName) return;
+		var fromIdx = this.cycleGroups.indexOf(groupName);
+		if (fromIdx === -1) return;
+		var rows = this.getDisplayCycleRows();
+		var beforeGroup = null;
+		for (var i = displayIdx; i < rows.length; i++) {
+			if (rows[i].type === "group" && rows[i].groupName !== groupName) { beforeGroup = rows[i].groupName; break; }
 		}
+		this.cycleGroups.splice(fromIdx, 1);
+		var toIdx = beforeGroup ? this.cycleGroups.indexOf(beforeGroup) : this.cycleGroups.length;
+		if (toIdx < 0) toIdx = this.cycleGroups.length;
+		this.cycleGroups.splice(toIdx, 0, groupName);
+		this.markImageEdited();
+		this.renderCyclesEditor();
+		this.syncUploadedImageData();
+	},
+
+	moveCycleToDisplayIndex: function (fromIdx, displayIdx) {
+		var cycles = this.bmp && this.bmp.palette ? this.bmp.palette.cycles : null;
+		if (!cycles || isNaN(fromIdx) || fromIdx < 0 || fromIdx >= cycles.length) return;
+		var rows = this.getDisplayCycleRows();
+		var targetGroup = "";
+		var prev = displayIdx > 0 ? rows[displayIdx - 1] : null;
+		var next = displayIdx < rows.length ? rows[displayIdx] : null;
+		if (prev && prev.type === "group") targetGroup = prev.groupName;
+		else if (prev && prev.type === "cycle") targetGroup = cycles[prev.cycleIdx].group || "";
+		else if (next && next.type === "cycle") targetGroup = cycles[next.cycleIdx].group || "";
+		var moved = cycles.splice(fromIdx, 1)[0];
+		moved.group = targetGroup;
+		var beforeCycle = null;
+		for (var i = displayIdx; i < rows.length; i++) {
+			if (rows[i].type !== "cycle") continue;
+			if (rows[i].cycleIdx === fromIdx) continue;
+			beforeCycle = rows[i].cycleIdx;
+			if (rows[i].cycleIdx > fromIdx) beforeCycle--;
+			break;
+		}
+		if (beforeCycle === null) cycles.push(moved);
+		else cycles.splice(Math.max(0, beforeCycle), 0, moved);
+		this.bmp.palette.numCycles = cycles.length;
+		this.bmp.optimize();
+		this.markImageEdited();
+		this.renderCyclesEditor();
+		this.renderDirty = true;
+		this.syncUploadedImageData();
+	},
+
+	requestRemoveGroup: function (name) {
+		if (!name) return;
+		var hasChildren = this.bmp.palette.cycles.some(function (cyc) { return (cyc.group || "") === name; });
+		if (!hasChildren) return this.removeGroup(name);
+		this.pendingGroupDeleteName = name;
+		$("group_warning_modal").setClass("hidden", false);
+	},
+
+	cancelGroupDelete: function () {
+		this.pendingGroupDeleteName = "";
+		$("group_warning_modal").setClass("hidden", true);
+	},
+
+	confirmGroupDelete: function () {
+		var name = this.pendingGroupDeleteName;
+		this.cancelGroupDelete();
+		if (name) this.removeGroup(name);
+	},
+
+	removeGroup: function (name) {
+		if (!name) return;
+		this.cycleGroups = this.cycleGroups.filter(function (g) { return g !== name; });
+		delete this.collapsedCycleGroups[name];
+		this.bmp.palette.cycles = this.bmp.palette.cycles.filter(function (cyc) { return (cyc.group || "") !== name; });
+		this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
+		this.bmp.optimize();
+		this.markImageEdited();
+		this.renderCyclesEditor();
+		this.syncUploadedImageData();
+	},
+
+	setGroupActive: function (name, isActive) {
+		var dirty = false;
+		for (var i = 0; i < this.bmp.palette.cycles.length; i++) {
+			var cyc = this.bmp.palette.cycles[i];
+			if ((cyc.group || "") !== name) continue;
+			cyc.active = !!isActive;
+			dirty = true;
+		}
+		if (!dirty) return;
+		this.bmp.optimize();
+		this.markImageEdited();
+		this.renderCyclesEditor();
+		this.syncUploadedImageData();
+	},
+
+	handleGroupNameCollision: function (baseName) {
+		return this.makeUniqueGroupName(baseName);
+	},
+
+	addGroup: function () {
+		if (!this.bmp) return;
+		var base = "group-" + (this.cycleGroups.length + 1);
+		var name = this.handleGroupNameCollision(base);
+		this.cycleGroups.push(name);
+		this.collapsedCycleGroups[name] = false;
+		this.markImageEdited();
+		this.renderCyclesEditor();
+		this.syncUploadedImageData();
 	},
 
 	syncSelectedColorToCycleField: function (field) {
 		if (!field || !this.bmp || !field.getAttribute) return;
 		var key = field.getAttribute("data-key");
-		if (key !== "low" && key !== "high") {
-			this.clearCycleFieldColorSelection();
-			return;
-		}
+		if (key !== "low" && key !== "high") { this.clearCycleFieldColorSelection(); return; }
 		var idx = parseInt(field.value, 10);
 		if (isNaN(idx)) {
 			var cycleIdx = parseInt(field.getAttribute("data-cycle"), 10);
-			if (!isNaN(cycleIdx) && this.bmp.palette.cycles[cycleIdx]) {
-				idx = parseInt(this.bmp.palette.cycles[cycleIdx][key], 10);
-			}
+			if (!isNaN(cycleIdx) && this.bmp.palette.cycles[cycleIdx]) idx = parseInt(this.bmp.palette.cycles[cycleIdx][key], 10);
 		}
-		if (isNaN(idx) || idx < 0 || idx >= this.bmp.palette.baseColors.length)
-			return;
+		if (isNaN(idx) || idx < 0 || idx >= this.bmp.palette.baseColors.length) return;
 		this.selectColor(idx);
 		this.keyboardHighlightColor = idx;
 		this.updateHighlightColor();
@@ -1586,16 +1742,11 @@ var CanvasCycle = {
 	},
 
 	handleCycleRangeFieldFocus: function (field) {
-		if (this.cycleFieldBlurTimer) {
-			clearTimeout(this.cycleFieldBlurTimer);
-			this.cycleFieldBlurTimer = null;
-		}
+		if (this.cycleFieldBlurTimer) { clearTimeout(this.cycleFieldBlurTimer); this.cycleFieldBlurTimer = null; }
 		this.syncSelectedColorToCycleField(field);
 	},
 
-	handleCycleRangeFieldBlur: function (evt) {
-		this.queueCycleFieldColorSelectionClear(evt);
-	},
+	handleCycleRangeFieldBlur: function (evt) { this.queueCycleFieldColorSelectionClear(evt); },
 
 	queueCycleFieldColorSelectionClear: function (evt) {
 		if (!evt || !this.bmp) return;
@@ -1607,24 +1758,16 @@ var CanvasCycle = {
 		this.cycleFieldBlurTimer = setTimeout(function () {
 			CanvasCycle.cycleFieldBlurTimer = null;
 			var active = document.activeElement;
-			if (!active || !active.getAttribute) {
-				CanvasCycle.clearCycleFieldColorSelection();
-				return;
-			}
+			if (!active || !active.getAttribute) return CanvasCycle.clearCycleFieldColorSelection();
 			var activeKey = active.getAttribute("data-key");
-			if (
-				(activeKey === "low" || activeKey === "high") &&
-				active.closest &&
-				active.closest("#cycles_editor")
-			)
-				return;
+			if ((activeKey === "low" || activeKey === "high") && active.closest && active.closest("#cycles_editor")) return;
 			CanvasCycle.clearCycleFieldColorSelection();
 		}, 0);
 	},
 
 	addCycle: function () {
 		if (!this.bmp) return;
-		this.bmp.palette.cycles.push(new Cycle(280, 0, 0, 0, true, ""));
+		this.bmp.palette.cycles.push(new Cycle(280, 0, 0, 0, true, "", ""));
 		this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
 		this.bmp.optimize();
 		this.markImageEdited();
@@ -1634,12 +1777,7 @@ var CanvasCycle = {
 
 	removeCycle: function (cycleIdx) {
 		if (!this.bmp || !this.bmp.palette.cycles.length) return;
-		if (
-			isNaN(cycleIdx) ||
-			cycleIdx < 0 ||
-			cycleIdx >= this.bmp.palette.cycles.length
-		)
-			return;
+		if (isNaN(cycleIdx) || cycleIdx < 0 || cycleIdx >= this.bmp.palette.cycles.length) return;
 		this.bmp.palette.cycles.splice(cycleIdx, 1);
 		this.bmp.palette.numCycles = this.bmp.palette.cycles.length;
 		this.bmp.optimize();
@@ -1655,6 +1793,7 @@ var CanvasCycle = {
 			colors: this.bmp.palette.baseColors.map(function (c) {
 				return [c.red, c.green, c.blue];
 			}),
+			groups: this.cycleGroups.slice(0),
 			cycles: this.bmp.palette.cycles.map(function (c) {
 				return {
 					low: c.low,
@@ -1663,17 +1802,20 @@ var CanvasCycle = {
 					reverse: c.reverse ? 1 : 0,
 					active: c.active !== false,
 					name: typeof c.name === "string" ? c.name.slice(0, 32) : "",
+					group: typeof c.group === "string" ? c.group : "",
 				};
 			}),
 		};
 		if (this.sourceImageData) {
 			this.sourceImageData.pixels = payload.pixels;
 			this.sourceImageData.colors = payload.colors;
+			this.sourceImageData.groups = payload.groups;
 			this.sourceImageData.cycles = payload.cycles;
 		}
 		if (this.uploadedImageData) {
 			this.uploadedImageData.pixels = payload.pixels;
 			this.uploadedImageData.colors = payload.colors;
+			this.uploadedImageData.groups = payload.groups;
 			this.uploadedImageData.cycles = payload.cycles;
 		}
 	},
