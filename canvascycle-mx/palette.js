@@ -90,6 +90,7 @@ Class.create( 'Palette', {
 			dest[idx].green = source[idx].green;
 			dest[idx].blue = source[idx].blue;
 		}
+		dest.length = source.length;
 	},
 	
 	swapColors: function(a, b) {
@@ -164,6 +165,9 @@ Class.create( 'Palette', {
 			for (i=0; i<this.numCycles; i++) {
 				var cycle = this.cycles[i];
 			if (cycle.active !== false && cycle.rate) {
+					cycle.low = Math.max(0, cycle.low | 0);
+					cycle.high = Math.min(this.numColors - 1, cycle.high | 0);
+					if (cycle.high <= cycle.low) continue;
 					cycleSize = (cycle.high - cycle.low) + 1;
 					cycleRate = cycle.rate / Math.floor(Palette.CYCLE_SPEED / speedAdjust);
 					
@@ -229,7 +233,7 @@ Class.create( 'Palette', {
 		// return transformed colors as array of arrays
 		var clrs = [];
 		for (var idx = 0, len = this.colors.length; idx < len; idx++) {
-			var color = this.colors[idx];
+			var color = this.colors[idx] || this.baseColors[idx] || new Color(0, 0, 0);
 			clrs[idx] = [color.red, color.green, color.blue];
 		}
 		return clrs;
