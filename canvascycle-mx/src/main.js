@@ -1,4 +1,4 @@
-import "./style.css";
+import "./css/player.css";
 import UPNG from "./vendor/upng.js";
 import { Cycle8Player, normalizeData } from "./Cycle8Player.js";
 
