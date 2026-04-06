@@ -1159,7 +1159,7 @@ var CanvasCycle = {
 	loadImage: function (name) {
 		this.stop();
 		this.showLoading();
-		var url = "images/" + name + ".json?t=" + Date.now();
+		var url = "data/" + name + ".json?t=" + Date.now();
 		fetch(url, { cache: "no-store" })
 			.then(function (res) {
 				if (!res.ok) throw new Error("Failed to load scene: " + name);
