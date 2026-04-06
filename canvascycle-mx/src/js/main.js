@@ -76,6 +76,7 @@ var CanvasCycle = {
 	maxUndoCount: 100,
 	paletteEditOriginalColor: null,
 	appName: "Cycle8",
+	introSeenStorageKey: "cycle8_intro_seen_v1",
 
 	settings: {
 		showOptions: true,
@@ -118,6 +119,7 @@ var CanvasCycle = {
 		this.updateStatusBar();
 		this.loadImage(scenes[0].name);
 		this.sceneIdx = 0;
+		this.showIntroModalOnFirstView();
 	},
 
 	buildPalette: function () {
@@ -410,7 +412,7 @@ var CanvasCycle = {
 			CanvasCycle.closePaletteSortPopup();
 		});
 
-		["about_modal", "help_modal"].forEach(function (id) {
+		["about_modal", "help_modal", "intro_modal"].forEach(function (id) {
 			var modal = $(id);
 			if (!modal) return;
 			modal.addEventListener("click", function (e) {
@@ -462,8 +464,31 @@ var CanvasCycle = {
 	},
 
 	closeInfoModals: function () {
+		this.closeIntroModal();
 		this.closeAboutModal();
 		this.closeHelpModal();
+	},
+
+	showIntroModalOnFirstView: function () {
+		var seen = false;
+		try {
+			seen = localStorage.getItem(this.introSeenStorageKey) === "1";
+		} catch (err) {
+			seen = false;
+		}
+		if (seen) return;
+		this.showIntroModal();
+		try {
+			localStorage.setItem(this.introSeenStorageKey, "1");
+		} catch (err) {}
+	},
+
+	showIntroModal: function () {
+		$("intro_modal").setClass("hidden", false);
+	},
+
+	closeIntroModal: function () {
+		$("intro_modal").setClass("hidden", true);
 	},
 
 	showAboutModal: function () {

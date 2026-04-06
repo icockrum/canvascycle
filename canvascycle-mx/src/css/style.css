@@ -652,6 +652,12 @@ div#d_debug .fps {
 #about_logo {
 	width: 300px;
 }
+#intro_logo_container {
+	text-align: center;
+}
+#intro_logo {
+	width: 200px;
+}
 .help-tabs {
 	display: flex;
 	flex-wrap: wrap;
