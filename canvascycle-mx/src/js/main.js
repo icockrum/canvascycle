@@ -75,6 +75,8 @@ var CanvasCycle = {
 	undoBuffer: [],
 	maxUndoCount: 100,
 	paletteEditOriginalColor: null,
+	gifExportModalResolver: null,
+	gifExportModalPayload: null,
 	appName: "Cycle8",
 	introSeenStorageKey: "cycle8_intro_seen_v1",
 
@@ -111,6 +113,7 @@ var CanvasCycle = {
 		this.positionPalettes();
 		this.bindColorChipPopup();
 		this.bindPaletteSortPopup();
+		this.bindGIFExportModal();
 		this.populateScenes(0);
 		this.applyStoredPrefs();
 		this.setGridOverlay(this.settings.gridOverlay);
@@ -417,11 +420,14 @@ var CanvasCycle = {
 			CanvasCycle.closePaletteSortPopup();
 		});
 
-		["about_modal", "help_modal", "intro_modal"].forEach(function (id) {
+		["about_modal", "help_modal", "intro_modal", "gif_export_modal", "error_modal"].forEach(function (id) {
 			var modal = $(id);
 			if (!modal) return;
 			modal.addEventListener("click", function (e) {
-				if (e.target === modal) modal.setClass("hidden", true);
+				if (e.target !== modal) return;
+				if (id === "gif_export_modal") return CanvasCycle.cancelGIFExport();
+				if (id === "error_modal") return CanvasCycle.hideErrorModal();
+				modal.setClass("hidden", true);
 			});
 		});
 
@@ -2597,15 +2603,86 @@ var CanvasCycle = {
 		this.uploadedImageData = payload;
 	},
 
-	buildGIFExportOptions: function () {
-		var fpsInput = window.prompt("Export GIF fps (1-60):", "20");
-		if (fpsInput === null) return null;
-		var maxFramesInput = window.prompt("Maximum GIF frames:", "2000");
-		if (maxFramesInput === null) return null;
+	bindGIFExportModal: function () {
+		var slider = $("gif_fps_slider");
+		var maxFramesInput = $("gif_max_frames_input");
+		if (!slider || !maxFramesInput) return;
+		var refresh = this.updateGIFExportStats.bind(this);
+		slider.addEventListener("input", refresh);
+		maxFramesInput.addEventListener("input", refresh);
+	},
 
-		var fps = Math.max(1, Math.min(60, parseInt(fpsInput, 10) || 20));
-		var maxFrames = Math.max(1, parseInt(maxFramesInput, 10) || 2000);
-		return { fps: fps, maxFrames: maxFrames };
+	showGIFExportModal: function (payload) {
+		var modal = $("gif_export_modal");
+		var slider = $("gif_fps_slider");
+		var maxFramesInput = $("gif_max_frames_input");
+		if (!modal || !slider || !maxFramesInput) return Promise.resolve(null);
+
+		this.gifExportModalPayload = payload;
+		slider.value = "12";
+		maxFramesInput.value = "2000";
+		this.updateGIFExportStats();
+		modal.setClass("hidden", false);
+
+		return new Promise(function (resolve) {
+			CanvasCycle.gifExportModalResolver = resolve;
+		});
+	},
+
+	cancelGIFExport: function () {
+		var modal = $("gif_export_modal");
+		if (modal) modal.setClass("hidden", true);
+		var resolver = this.gifExportModalResolver;
+		this.gifExportModalResolver = null;
+		this.gifExportModalPayload = null;
+		if (resolver) resolver(null);
+	},
+
+	confirmGIFExport: function () {
+		var modal = $("gif_export_modal");
+		var slider = $("gif_fps_slider");
+		var maxFramesInput = $("gif_max_frames_input");
+		if (!modal || !slider || !maxFramesInput) return this.cancelGIFExport();
+
+		var fps = Math.max(1, Math.min(60, parseInt(slider.value, 10) || 12));
+		var maxFrames = Math.max(1, parseInt(maxFramesInput.value, 10) || 2000);
+		modal.setClass("hidden", true);
+		var resolver = this.gifExportModalResolver;
+		this.gifExportModalResolver = null;
+		this.gifExportModalPayload = null;
+		if (resolver) resolver({ fps: fps, maxFrames: maxFrames });
+	},
+
+	updateGIFExportStats: function () {
+		var statsEl = $("gif_export_stats");
+		var fpsValueEl = $("gif_fps_value");
+		var slider = $("gif_fps_slider");
+		var maxFramesInput = $("gif_max_frames_input");
+		var payload = this.gifExportModalPayload;
+		if (!statsEl || !fpsValueEl || !slider || !maxFramesInput || !payload) return;
+
+		var fps = Math.max(1, Math.min(60, parseInt(slider.value, 10) || 12));
+		var maxFrames = Math.max(1, parseInt(maxFramesInput.value, 10) || 2000);
+		if (maxFramesInput.value !== String(maxFrames)) maxFramesInput.value = String(maxFrames);
+		fpsValueEl.innerHTML = fps + " fps";
+
+		var stats = this.getGIFExportStats(payload, fps, maxFrames);
+		var exactLabel = stats.isExact ? "exact loop" : "truncated at max frames";
+		var sizeLabel = this.formatBytes(stats.estimatedBytes);
+		var fullCycleLabel = isFinite(stats.idealFrames)
+			? stats.idealFrames.toLocaleString()
+			: "Very large (capped)";
+		statsEl.innerHTML =
+			"Full cycle: " +
+			fullCycleLabel +
+			" frames<br/>" +
+			"Export: " +
+			stats.frameCount.toLocaleString() +
+			" frames (" +
+			exactLabel +
+			")<br/>" +
+			"Estimated GIF size: " +
+			sizeLabel;
 	},
 
 	calculateCyclePeriodMS: function (cycles) {
@@ -2614,28 +2691,101 @@ var CanvasCycle = {
 		});
 		if (!active.length) return 0;
 
-		var gcd = function (a, b) {
-			var x = Math.abs(a);
-			var y = Math.abs(b);
+		var gcdBig = function (a, b) {
+			var x = a < 0n ? -a : a;
+			var y = b < 0n ? -b : b;
 			while (y) {
 				var t = x % y;
 				x = y;
 				y = t;
 			}
-			return x || 1;
+			return x || 1n;
 		};
-		var lcm = function (a, b) {
-			if (!a || !b) return 0;
-			return Math.abs((a / gcd(a, b)) * b);
+		var lcmBig = function (a, b) {
+			if (!a || !b) return 0n;
+			return (a / gcdBig(a, b)) * b;
 		};
 
-		var m = 1;
+		var denominators = [];
+		var fractions = [];
 		for (var idx = 0; idx < active.length; idx++) {
 			var cycle = active[idx];
-			var size = cycle.high - cycle.low + 1;
-			m = lcm(m, size / gcd(size, Math.abs(cycle.rate)));
+			var size = BigInt(cycle.high - cycle.low + 1);
+			var rate = BigInt(Math.max(1, Math.round(Math.abs(cycle.rate))));
+			var numerator = size * 280000n;
+			var denom = rate || 1n;
+			var reduced = gcdBig(numerator, denom);
+			numerator /= reduced;
+			denom /= reduced;
+			fractions.push({ numerator: numerator, denominator: denom });
+			denominators.push(denom);
 		}
-		return 280000 * m;
+
+		var commonDenominator = 1n;
+		for (var d = 0; d < denominators.length; d++) {
+			commonDenominator = lcmBig(commonDenominator, denominators[d]);
+		}
+
+		var lcmNumerator = 1n;
+		for (var fidx = 0; fidx < fractions.length; fidx++) {
+			var scaled = fractions[fidx].numerator * (commonDenominator / fractions[fidx].denominator);
+			lcmNumerator = lcmBig(lcmNumerator, scaled);
+			if (lcmNumerator > 9007199254740991n) return Number.POSITIVE_INFINITY;
+		}
+
+		var period = lcmNumerator / commonDenominator;
+		if (period > 9007199254740991n) return Number.POSITIVE_INFINITY;
+		return Number(period);
+	},
+
+	getGIFExportStats: function (payload, fps, maxFrames) {
+		var delayCs = Math.max(1, Math.round(100 / fps));
+		var delayMS = delayCs * 10;
+		var totalMS = this.calculateCyclePeriodMS(payload.cycles || []);
+		var idealFrames = totalMS > 0 ? Math.ceil(totalMS / delayMS) : 1;
+		var frameCount = Math.min(maxFrames, Math.max(1, idealFrames));
+		var estimatedBytes = this.estimateGIFByteSize(payload, frameCount);
+		return {
+			delayCs: delayCs,
+			delayMS: delayMS,
+			totalMS: totalMS,
+			idealFrames: idealFrames,
+			frameCount: frameCount,
+			estimatedBytes: estimatedBytes,
+			isExact: idealFrames <= maxFrames,
+		};
+	},
+
+	estimateGIFByteSize: function (payload, frameCount) {
+		var pixelCount = (payload.width || 0) * (payload.height || 0);
+		var perFrameBody = pixelCount + Math.ceil(pixelCount / 255) + 24;
+		return 800 + frameCount * perFrameBody;
+	},
+
+	formatBytes: function (bytes) {
+		if (!isFinite(bytes) || bytes < 0) return "Unknown";
+		if (bytes < 1024) return bytes + " B";
+		var units = ["KB", "MB", "GB"];
+		var value = bytes / 1024;
+		var idx = 0;
+		while (value >= 1024 && idx < units.length - 1) {
+			value /= 1024;
+			idx++;
+		}
+		return value.toFixed(value >= 10 ? 1 : 2) + " " + units[idx];
+	},
+
+	showErrorModal: function (message) {
+		var modal = $("error_modal");
+		var messageEl = $("error_modal_message");
+		if (!modal || !messageEl) return window.alert(message);
+		messageEl.textContent = message;
+		modal.setClass("hidden", false);
+	},
+
+	hideErrorModal: function () {
+		var modal = $("error_modal");
+		if (modal) modal.setClass("hidden", true);
 	},
 
 	buildGIFIndexRemap: function (cycles, timeNow) {
@@ -2702,7 +2852,7 @@ var CanvasCycle = {
 	downloadCurrentGIF: async function () {
 		var payload = this.buildDownloadPayload();
 		if (!payload) return;
-		var opts = this.buildGIFExportOptions();
+		var opts = await this.showGIFExportModal(payload);
 		if (!opts) return;
 
 		this.showLoading();
@@ -2711,24 +2861,21 @@ var CanvasCycle = {
 		});
 
 		try {
-			var fps = opts.fps;
-			var delayCs = Math.max(1, Math.round(100 / fps));
-			var delayMS = delayCs * 10;
-			var totalMS = this.calculateCyclePeriodMS(payload.cycles || []);
-			var idealFrames = totalMS > 0 ? Math.ceil(totalMS / delayMS) : 1;
-			var frameCount = Math.min(opts.maxFrames, Math.max(1, idealFrames));
-			if (idealFrames > opts.maxFrames) {
-				window.alert(
-					"Full cycle needs " +
-						idealFrames +
-						" frames. Export capped to " +
-						opts.maxFrames +
-						". Increase max frames for an exact full-period GIF.",
+			var stats = this.getGIFExportStats(payload, opts.fps, opts.maxFrames);
+			var delayCs = stats.delayCs;
+			var delayMS = stats.delayMS;
+			var frameCount = stats.frameCount;
+			if (stats.estimatedBytes > 512 * 1024 * 1024) {
+				throw new Error(
+					"Estimated GIF size is " +
+						this.formatBytes(stats.estimatedBytes) +
+						". Lower max frames or frame rate before exporting.",
 				);
 			}
 
 			var bytes = [];
 			var pushU8 = function (v) {
+				if (!isFinite(v)) throw new Error("Invalid GIF byte value.");
 				bytes.push(v & 0xff);
 			};
 			var pushU16 = function (v) {
@@ -2803,6 +2950,12 @@ var CanvasCycle = {
 			);
 			this.downloadBlob(new Uint8Array(bytes), "image/gif", fileBase + ".gif");
 			this.uploadedImageData = payload;
+		}
+		catch (err) {
+			console.error("GIF export failed:", err);
+			this.showErrorModal(
+				(err && err.message) || "GIF export failed due to an unknown error.",
+			);
 		}
 		finally {
 			this.hideLoading();
