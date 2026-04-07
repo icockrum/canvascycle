@@ -322,9 +322,16 @@
 
 		<div id="transparency_warning_modal" class="modal hidden">
 			<div class="modal-card">
-				<p>Warning: this PNG contains transparency and Cycle8 does not support alpha. Transparent entries will render as solid palette colors.</p>
+				<p>
+					Warning: this PNG contains transparency and Cycle8 does not support
+					alpha. Transparent entries will render as solid palette colors.
+				</p>
 				<div class="modal-actions">
-					<button class="button default-action" type="button" onClick="CC.cancelTransparencyWarning()">
+					<button
+						class="button default-action"
+						type="button"
+						onClick="CC.cancelTransparencyWarning()"
+					>
 						OK
 					</button>
 				</div>
@@ -338,7 +345,11 @@
 					<button class="button" type="button" onClick="CC.cancelGroupDelete()">
 						Cancel
 					</button>
-					<button class="button primary" type="button" onClick="CC.confirmGroupDelete()">
+					<button
+						class="button primary"
+						type="button"
+						onClick="CC.confirmGroupDelete()"
+					>
 						Proceed
 					</button>
 				</div>
@@ -447,14 +458,19 @@
 							<img id="intro_logo" src="images/Cycle8Logo.png" />
 						</div>
 						<p>
-							Welcome to <b>Cycle8</b>. This editor lets you load indexed images,
-							shape color-cycle ranges, and tune animation timing to build and
-							remix color-cycling scenes.
+							Welcome to <b>Cycle8</b>. This editor lets you load indexed
+							images, shape color-cycle ranges, and tune animation timing to
+							build and remix color-cycling scenes.
 						</p>
 						<p>
 							Use the <i>File</i> menu to import PNG/JSON or open a sample, and
 							check <i>Help</i> for keyboard shortcuts and workflow tips.
 						</p>
+						<p class="em"><b>Limitations:</b></p>
+						<ul class="em">
+							<li>Only accepts 8-bit PNG images with no transparency.</li>
+							<li>Only accepts images at 640x480 pixel size (for now).</li>
+						</ul>
 					</section>
 				</div>
 			</div>
@@ -585,6 +601,7 @@
 									<p>
 										Import an indexed PNG and convert it into JSON data (pixels,
 										palette, and cycle-ready structure).
+										<b>PNG must be 640x480 and 8-bit with no transparency.</b>
 									</p>
 								</div>
 							</div>
