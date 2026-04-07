@@ -2666,7 +2666,12 @@ var CanvasCycle = {
 		if (maxFramesInput.value !== String(maxFrames)) maxFramesInput.value = String(maxFrames);
 		fpsValueEl.innerHTML = fps + " fps";
 
-		var stats = this.getGIFExportStats(payload, fps, maxFrames);
+		var stats = this.getGIFExportStats(
+			payload,
+			fps,
+			maxFrames,
+			this.settings.speedAdjust,
+		);
 		var exactLabel = stats.isExact ? "exact loop" : "truncated at max frames";
 		var sizeLabel = this.formatBytes(stats.estimatedBytes);
 		var fullCycleLabel = isFinite(stats.idealFrames)
@@ -2685,11 +2690,11 @@ var CanvasCycle = {
 			sizeLabel;
 	},
 
-	calculateCyclePeriodMS: function (cycles) {
+	calculateCyclePeriodFrames: function (cycles, delayCs, speedAdjust) {
 		var active = cycles.filter(function (cycle) {
 			return cycle && cycle.active !== false && cycle.rate && cycle.high > cycle.low;
 		});
-		if (!active.length) return 0;
+		if (!active.length) return 1;
 
 		var gcdBig = function (a, b) {
 			var x = a < 0n ? -a : a;
@@ -2706,43 +2711,38 @@ var CanvasCycle = {
 			return (a / gcdBig(a, b)) * b;
 		};
 
-		var denominators = [];
-		var fractions = [];
+		var rateDivisor = Math.floor(280 / Math.max(1, speedAdjust || 1));
+		rateDivisor = Math.max(1, rateDivisor);
+		var cyclePeriods = [];
 		for (var idx = 0; idx < active.length; idx++) {
 			var cycle = active[idx];
 			var size = BigInt(cycle.high - cycle.low + 1);
 			var rate = BigInt(Math.max(1, Math.round(Math.abs(cycle.rate))));
-			var numerator = size * 280000n;
-			var denom = rate || 1n;
-			var reduced = gcdBig(numerator, denom);
-			numerator /= reduced;
-			denom /= reduced;
-			fractions.push({ numerator: numerator, denominator: denom });
-			denominators.push(denom);
+			var a = BigInt(delayCs) * rate;
+			var b = 100n * BigInt(rateDivisor);
+			var reduced = gcdBig(a, b);
+			a /= reduced;
+			b /= reduced;
+			cyclePeriods.push((b * size) / gcdBig(a, size));
 		}
 
-		var commonDenominator = 1n;
-		for (var d = 0; d < denominators.length; d++) {
-			commonDenominator = lcmBig(commonDenominator, denominators[d]);
+		var total = 1n;
+		for (var p = 0; p < cyclePeriods.length; p++) {
+			total = lcmBig(total, cyclePeriods[p]);
+			if (total > 9007199254740991n) return Number.POSITIVE_INFINITY;
 		}
-
-		var lcmNumerator = 1n;
-		for (var fidx = 0; fidx < fractions.length; fidx++) {
-			var scaled = fractions[fidx].numerator * (commonDenominator / fractions[fidx].denominator);
-			lcmNumerator = lcmBig(lcmNumerator, scaled);
-			if (lcmNumerator > 9007199254740991n) return Number.POSITIVE_INFINITY;
-		}
-
-		var period = lcmNumerator / commonDenominator;
-		if (period > 9007199254740991n) return Number.POSITIVE_INFINITY;
-		return Number(period);
+		return Number(total);
 	},
 
-	getGIFExportStats: function (payload, fps, maxFrames) {
+	getGIFExportStats: function (payload, fps, maxFrames, speedAdjust) {
 		var delayCs = Math.max(1, Math.round(100 / fps));
 		var delayMS = delayCs * 10;
-		var totalMS = this.calculateCyclePeriodMS(payload.cycles || []);
-		var idealFrames = totalMS > 0 ? Math.ceil(totalMS / delayMS) : 1;
+		var idealFrames = this.calculateCyclePeriodFrames(
+			payload.cycles || [],
+			delayCs,
+			speedAdjust,
+		);
+		var totalMS = isFinite(idealFrames) ? idealFrames * delayMS : Number.POSITIVE_INFINITY;
 		var frameCount = Math.min(maxFrames, Math.max(1, idealFrames));
 		var estimatedBytes = this.estimateGIFByteSize(payload, frameCount);
 		return {
@@ -2788,9 +2788,11 @@ var CanvasCycle = {
 		if (modal) modal.setClass("hidden", true);
 	},
 
-	buildGIFIndexRemap: function (cycles, timeNow) {
+	buildGIFIndexRemap: function (cycles, timeNow, speedAdjust) {
 		var map = new Uint8Array(256);
 		for (var i = 0; i < 256; i++) map[i] = i;
+		var rateDivisor = Math.floor(280 / Math.max(1, speedAdjust || 1));
+		rateDivisor = Math.max(1, rateDivisor);
 		for (var idx = 0; idx < cycles.length; idx++) {
 			var cycle = cycles[idx];
 			if (!cycle || cycle.active === false || !cycle.rate) continue;
@@ -2798,7 +2800,7 @@ var CanvasCycle = {
 			var high = Math.min(255, cycle.high | 0);
 			if (high <= low) continue;
 			var size = high - low + 1;
-			var amountRaw = Math.floor((timeNow / (1000 / (cycle.rate / 280))) % size);
+			var amountRaw = Math.floor((timeNow * cycle.rate) / (1000 * rateDivisor)) % size;
 			var amount = cycle.reverse ? (size - amountRaw) % size : amountRaw;
 			if (!amount) continue;
 			var segment = map.slice(low, high + 1);
@@ -2810,13 +2812,16 @@ var CanvasCycle = {
 	},
 
 	encodeGIFIndices: function (indices, minCodeSize) {
+		if (!indices || !indices.length) return [];
 		var clearCode = 1 << minCodeSize;
 		var endCode = clearCode + 1;
 		var out = [];
 		var codeSize = minCodeSize + 1;
 		var nextCode = endCode + 1;
+		var dict = Object.create(null);
 		var bitBuffer = 0;
 		var bitCount = 0;
+		var i;
 
 		var pushCode = function (code) {
 			bitBuffer |= code << bitCount;
@@ -2828,22 +2833,37 @@ var CanvasCycle = {
 			}
 		};
 
-		pushCode(clearCode);
-		pushCode(indices[0] || 0);
+		var resetDict = function () {
+			dict = Object.create(null);
+			for (var d = 0; d < clearCode; d++) dict[String(d)] = d;
+			codeSize = minCodeSize + 1;
+			nextCode = endCode + 1;
+		};
 
-		for (var i = 1; i < indices.length; i++) {
+		pushCode(clearCode);
+		resetDict();
+		var prefix = String(indices[0] || 0);
+
+		for (i = 1; i < indices.length; i++) {
+			var k = indices[i] | 0;
+			var key = prefix + "," + k;
+			if (dict[key] !== undefined) {
+				prefix = key;
+				continue;
+			}
+			pushCode(dict[prefix]);
 			if (nextCode < 4096) {
-				nextCode++;
+				dict[key] = nextCode++;
 				if (nextCode === (1 << codeSize) && codeSize < 12) codeSize++;
 			}
 			else {
 				pushCode(clearCode);
-				codeSize = minCodeSize + 1;
-				nextCode = endCode + 1;
+				resetDict();
 			}
-			pushCode(indices[i]);
+			prefix = String(k);
 		}
 
+		pushCode(dict[prefix]);
 		pushCode(endCode);
 		if (bitCount > 0) out.push(bitBuffer & 0xff);
 		return out;
@@ -2861,7 +2881,12 @@ var CanvasCycle = {
 		});
 
 		try {
-			var stats = this.getGIFExportStats(payload, opts.fps, opts.maxFrames);
+			var stats = this.getGIFExportStats(
+				payload,
+				opts.fps,
+				opts.maxFrames,
+				this.settings.speedAdjust,
+			);
 			var delayCs = stats.delayCs;
 			var delayMS = stats.delayMS;
 			var frameCount = stats.frameCount;
@@ -2919,7 +2944,11 @@ var CanvasCycle = {
 			var framePixels = new Uint8Array(payload.pixels.length);
 			for (var frame = 0; frame < frameCount; frame++) {
 				var t = frame * delayMS;
-				var remap = this.buildGIFIndexRemap(payload.cycles || [], t);
+				var remap = this.buildGIFIndexRemap(
+					payload.cycles || [],
+					t,
+					this.settings.speedAdjust,
+				);
 				for (var p = 0; p < payload.pixels.length; p++) {
 					framePixels[p] = remap[payload.pixels[p]];
 				}
