@@ -16,7 +16,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "wrap-player": "node node/json-to-embed-player.js"
+    "wrap-player": "node node/json-to-embed-player.js",
+    "json-to-gif": "node node/json-to-gif.js"
   },
   "dependencies": {
     "upng-js": "^2.1.0"
