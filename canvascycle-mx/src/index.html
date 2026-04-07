@@ -379,6 +379,65 @@
 			</div>
 		</div>
 
+		<div id="gif_export_modal" class="modal hidden">
+			<div class="modal-card">
+				<div class="modal-header">
+					<h2>Export GIF</h2>
+				</div>
+				<div class="gif-export-field">
+					<label for="gif_fps_slider">Frame rate</label>
+					<div class="gif-export-slider-row">
+						<input
+							id="gif_fps_slider"
+							type="range"
+							min="1"
+							max="60"
+							step="1"
+							value="12"
+						/>
+						<span id="gif_fps_value">12 fps</span>
+					</div>
+				</div>
+				<div class="gif-export-field">
+					<label for="gif_max_frames_input">Maximum frames</label>
+					<input
+						id="gif_max_frames_input"
+						type="number"
+						min="1"
+						step="1"
+						value="2000"
+					/>
+				</div>
+				<div id="gif_export_stats" class="gif-export-stats"></div>
+				<div class="modal-actions">
+					<button class="button right" type="button" onClick="CC.cancelGIFExport()">
+						Cancel
+					</button>
+					<button
+						class="button"
+						type="button"
+						onClick="CC.confirmGIFExport()"
+					>
+						Export GIF
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<div id="error_modal" class="modal hidden">
+			<div class="modal-card">
+				<div class="modal-header">
+					<h2>Export Error</h2>
+				</div>
+				<div id="error_modal_message"></div>
+				<div class="modal-actions">
+					<button class="button" type="button" onClick="CC.hideErrorModal()">
+						OK
+					</button>
+				</div>
+			</div>
+		</div>
+
 		<div id="about_modal" class="modal hidden">
 			<div class="modal-card modal-card-scrollable">
 				<div class="modal-header" style="justify-content: flex-end">
