@@ -311,6 +311,7 @@ var CanvasCycle = {
 		var uploadPNGItem = $("menu_upload_png");
 		var uploadJSONItem = $("menu_upload_json");
 		var exportJSONItem = $("menu_export_json");
+		var exportGIFItem = $("menu_export_gif");
 		var exportEmbedItem = $("menu_export_embed");
 		var downloadPlayerItem = $("menu_download_player");
 		var viewExampleItem = $("menu_view_example");
@@ -364,6 +365,10 @@ var CanvasCycle = {
 		});
 		exportJSONItem.addEventListener("click", function () {
 			CanvasCycle.downloadCurrentJSON();
+			CanvasCycle.closeMenus();
+		});
+		exportGIFItem.addEventListener("click", async function () {
+			await CanvasCycle.downloadCurrentGIF();
 			CanvasCycle.closeMenus();
 		});
 		exportEmbedItem.addEventListener("click", function () {
@@ -2590,6 +2595,218 @@ var CanvasCycle = {
 		);
 		this.downloadBlob(script, "text/javascript", base + ".js");
 		this.uploadedImageData = payload;
+	},
+
+	buildGIFExportOptions: function () {
+		var fpsInput = window.prompt("Export GIF fps (1-60):", "20");
+		if (fpsInput === null) return null;
+		var maxFramesInput = window.prompt("Maximum GIF frames:", "2000");
+		if (maxFramesInput === null) return null;
+
+		var fps = Math.max(1, Math.min(60, parseInt(fpsInput, 10) || 20));
+		var maxFrames = Math.max(1, parseInt(maxFramesInput, 10) || 2000);
+		return { fps: fps, maxFrames: maxFrames };
+	},
+
+	calculateCyclePeriodMS: function (cycles) {
+		var active = cycles.filter(function (cycle) {
+			return cycle && cycle.active !== false && cycle.rate && cycle.high > cycle.low;
+		});
+		if (!active.length) return 0;
+
+		var gcd = function (a, b) {
+			var x = Math.abs(a);
+			var y = Math.abs(b);
+			while (y) {
+				var t = x % y;
+				x = y;
+				y = t;
+			}
+			return x || 1;
+		};
+		var lcm = function (a, b) {
+			if (!a || !b) return 0;
+			return Math.abs((a / gcd(a, b)) * b);
+		};
+
+		var m = 1;
+		for (var idx = 0; idx < active.length; idx++) {
+			var cycle = active[idx];
+			var size = cycle.high - cycle.low + 1;
+			m = lcm(m, size / gcd(size, Math.abs(cycle.rate)));
+		}
+		return 280000 * m;
+	},
+
+	buildGIFIndexRemap: function (cycles, timeNow) {
+		var map = new Uint8Array(256);
+		for (var i = 0; i < 256; i++) map[i] = i;
+		for (var idx = 0; idx < cycles.length; idx++) {
+			var cycle = cycles[idx];
+			if (!cycle || cycle.active === false || !cycle.rate) continue;
+			var low = Math.max(0, cycle.low | 0);
+			var high = Math.min(255, cycle.high | 0);
+			if (high <= low) continue;
+			var size = high - low + 1;
+			var amountRaw = Math.floor((timeNow / (1000 / (cycle.rate / 280))) % size);
+			var amount = cycle.reverse ? (size - amountRaw) % size : amountRaw;
+			if (!amount) continue;
+			var segment = map.slice(low, high + 1);
+			for (var j = 0; j < size; j++) {
+				map[low + ((j + amount) % size)] = segment[j];
+			}
+		}
+		return map;
+	},
+
+	encodeGIFIndices: function (indices, minCodeSize) {
+		var clearCode = 1 << minCodeSize;
+		var endCode = clearCode + 1;
+		var out = [];
+		var codeSize = minCodeSize + 1;
+		var nextCode = endCode + 1;
+		var bitBuffer = 0;
+		var bitCount = 0;
+
+		var pushCode = function (code) {
+			bitBuffer |= code << bitCount;
+			bitCount += codeSize;
+			while (bitCount >= 8) {
+				out.push(bitBuffer & 0xff);
+				bitBuffer >>= 8;
+				bitCount -= 8;
+			}
+		};
+
+		pushCode(clearCode);
+		pushCode(indices[0] || 0);
+
+		for (var i = 1; i < indices.length; i++) {
+			if (nextCode < 4096) {
+				nextCode++;
+				if (nextCode === (1 << codeSize) && codeSize < 12) codeSize++;
+			}
+			else {
+				pushCode(clearCode);
+				codeSize = minCodeSize + 1;
+				nextCode = endCode + 1;
+			}
+			pushCode(indices[i]);
+		}
+
+		pushCode(endCode);
+		if (bitCount > 0) out.push(bitBuffer & 0xff);
+		return out;
+	},
+
+	downloadCurrentGIF: async function () {
+		var payload = this.buildDownloadPayload();
+		if (!payload) return;
+		var opts = this.buildGIFExportOptions();
+		if (!opts) return;
+
+		this.showLoading();
+		await new Promise(function (resolve) {
+			setTimeout(resolve, 0);
+		});
+
+		try {
+			var fps = opts.fps;
+			var delayCs = Math.max(1, Math.round(100 / fps));
+			var delayMS = delayCs * 10;
+			var totalMS = this.calculateCyclePeriodMS(payload.cycles || []);
+			var idealFrames = totalMS > 0 ? Math.ceil(totalMS / delayMS) : 1;
+			var frameCount = Math.min(opts.maxFrames, Math.max(1, idealFrames));
+			if (idealFrames > opts.maxFrames) {
+				window.alert(
+					"Full cycle needs " +
+						idealFrames +
+						" frames. Export capped to " +
+						opts.maxFrames +
+						". Increase max frames for an exact full-period GIF.",
+				);
+			}
+
+			var bytes = [];
+			var pushU8 = function (v) {
+				bytes.push(v & 0xff);
+			};
+			var pushU16 = function (v) {
+				pushU8(v & 0xff);
+				pushU8((v >> 8) & 0xff);
+			};
+			var pushAscii = function (s) {
+				for (var i = 0; i < s.length; i++) pushU8(s.charCodeAt(i));
+			};
+			var pushSubBlocks = function (arr) {
+				for (var i = 0; i < arr.length; i += 255) {
+					var size = Math.min(255, arr.length - i);
+					pushU8(size);
+					for (var j = 0; j < size; j++) pushU8(arr[i + j]);
+				}
+				pushU8(0);
+			};
+
+			pushAscii("GIF89a");
+			pushU16(payload.width);
+			pushU16(payload.height);
+			pushU8(0x80 | 0x70 | 0x07);
+			pushU8(0);
+			pushU8(0);
+			for (var cidx = 0; cidx < 256; cidx++) {
+				var c = payload.colors[cidx] || [0, 0, 0];
+				pushU8(c[0]);
+				pushU8(c[1]);
+				pushU8(c[2]);
+			}
+
+			pushU8(0x21);
+			pushU8(0xff);
+			pushU8(0x0b);
+			pushAscii("NETSCAPE2.0");
+			pushU8(0x03);
+			pushU8(0x01);
+			pushU16(0);
+			pushU8(0);
+
+			var framePixels = new Uint8Array(payload.pixels.length);
+			for (var frame = 0; frame < frameCount; frame++) {
+				var t = frame * delayMS;
+				var remap = this.buildGIFIndexRemap(payload.cycles || [], t);
+				for (var p = 0; p < payload.pixels.length; p++) {
+					framePixels[p] = remap[payload.pixels[p]];
+				}
+
+				pushU8(0x21);
+				pushU8(0xf9);
+				pushU8(0x04);
+				pushU8(0x00);
+				pushU16(delayCs);
+				pushU8(0x00);
+				pushU8(0x00);
+
+				pushU8(0x2c);
+				pushU16(0);
+				pushU16(0);
+				pushU16(payload.width);
+				pushU16(payload.height);
+				pushU8(0x00);
+				pushU8(8);
+				pushSubBlocks(this.encodeGIFIndices(framePixels, 8));
+			}
+
+			pushU8(0x3b);
+
+			var fileBase = (payload.filename || "canvascycle-export.json").replace(
+				/\.json$/i,
+				"",
+			);
+			this.downloadBlob(new Uint8Array(bytes), "image/gif", fileBase + ".gif");
+			this.uploadedImageData = payload;
+		}
+		finally {
+			this.hideLoading();
+		}
 	},
 
 	downloadPlayer: async function () {

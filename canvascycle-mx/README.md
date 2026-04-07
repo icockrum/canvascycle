@@ -13,6 +13,7 @@ CanvasCycle MX now mirrors the original CanvasCycle presentation and controls, w
 - Added drag-and-drop palette chip reordering with pixel remapping.
 - Added editable cycle list (`reverse`, `rate`, `low`, `high`).
 - Added JSON download for current working image.
+- Added in-browser GIF export (`File > Export GIF`) for one-cycle animation downloads.
 - Retains uploaded image in memory and allows resuming it after sample browsing.
 
 ## Run
@@ -48,3 +49,16 @@ In the editor UI, both **Export JSON** and **Export Standalone** now download mi
 
 If you are evaluating non-destructive layers and file-size tradeoffs, see `LAYER_STORAGE_NOTES.md`.
 
+
+## Export animated GIF from CanvasCycle JSON
+
+You can generate an animated GIF directly from exported scene JSON:
+
+```bash
+npm run json-to-gif -- canvascycle-mx/src/data/desert.json output/desert-cycle.gif --fps=30 --max-frames=4000
+```
+
+Notes:
+- The script computes the cycle period from your cycle definitions and tries to include one full loop.
+- If that full loop would be too long, it caps at `--max-frames` and prints a warning.
+- Raise `--max-frames` if you need exact full-period output for complex scenes.
